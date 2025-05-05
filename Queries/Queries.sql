@@ -376,3 +376,153 @@ ORDER BY
 LIMIT 1;
 
 --query No: 17
+SELECT 
+    u.FirstName,
+    u.LastName,
+    COUNT(*) AS CancelCount,
+    ROUND(
+        COUNT(*) * 100.0 / (
+            SELECT COUNT(*) 
+            FROM reservationIssue ri2
+            WHERE ri2.IssueCategory = 2
+        ), 2
+    ) AS CancelPercentage
+FROM 
+    ReservationIssue ri
+JOIN 
+    User u ON ri.HandledBy = u.UserID
+WHERE 
+    ri.IssueCategory = 2 AND u.Role = 'admin'
+GROUP BY 
+    u.UserID, u.FirstName, u.LastName
+ORDER BY 
+    CancelCount DESC
+LIMIT 1;
+
+--query No: 18
+UPDATE 
+    User
+SET 
+    LastName = 'ردینگتون'
+WHERE 
+    UserID = (
+        SELECT 
+            UserID
+        FROM 
+            Reservation
+        WHERE 
+            ReservationStatus = 'لغو شده'
+        GROUP BY 
+            UserID
+        ORDER BY 
+            COUNT(*) DESC
+    LIMIT 1
+);
+
+--query No: 19
+DELETE FROM Reservation
+WHERE UserID = (
+    SELECT 
+        UserID 
+    FROM 
+        User 
+    WHERE 
+        LastName = 'ردینگتون'
+)
+AND ReservationStatus = 'لغو شده';
+--delete records from all tables that are related to the deleted reservation
+-- DELETE FROM PaymentHistory
+-- WHERE PaymentID IN (
+--     SELECT PaymentID
+--     FROM Payment
+--     WHERE ReservationID IN (
+--         SELECT ReservationID
+--         FROM Reservation
+--         WHERE UserID = (SELECT UserID FROM User WHERE LastName = 'ردینگتون')
+--         AND ReservationStatus = 'لغو شده'
+--     )
+-- );
+-- DELETE FROM Payment
+-- WHERE ReservationID IN (
+--     SELECT ReservationID
+--     FROM Reservation
+--     WHERE UserID = (SELECT UserID FROM User WHERE LastName = 'ردینگتون')
+--     AND ReservationStatus = 'لغو شده'
+-- );
+-- DELETE FROM Reports
+-- WHERE ReservationID IN (
+--     SELECT ReservationID
+--     FROM Reservation
+--     WHERE UserID = (SELECT UserID FROM User WHERE LastName = 'ردینگتون')
+--     AND ReservationStatus = 'لغو شده'
+-- );
+-- DELETE FROM ReservationIssue
+-- WHERE ReservationID IN (
+--     SELECT ReservationID
+--     FROM Reservation
+--     WHERE UserID = (SELECT UserID FROM User WHERE LastName = 'ردینگتون')
+--     AND ReservationStatus = 'لغو شده'
+-- );
+-- DELETE FROM Reservation
+-- WHERE UserID = (SELECT UserID FROM User WHERE LastName = 'ردینگتون')
+-- AND ReservationStatus = 'لغو شده';
+
+--query No: 20
+DELETE FROM PaymentHistory
+WHERE PaymentID IN (
+  SELECT PaymentID FROM Payment
+  WHERE ReservationID IN (
+    SELECT ReservationID FROM Reservation
+    WHERE ReservationStatus = 'لغو شده'
+  )
+);
+DELETE FROM Payment
+WHERE ReservationID IN (
+  SELECT ReservationID FROM Reservation
+  WHERE ReservationStatus = 'لغو شده'
+);
+DELETE FROM Reports
+WHERE ReservationID IN (
+  SELECT ReservationID FROM Reservation
+  WHERE ReservationStatus = 'لغو شده'
+);
+DELETE FROM ReservationIssue
+WHERE ReservationID IN (
+  SELECT ReservationID FROM Reservation
+  WHERE ReservationStatus = 'لغو شده'
+);
+UPDATE Ticket
+SET RemainingCapacity = RemainingCapacity + 1
+WHERE TicketID IN (
+  SELECT TicketID
+  FROM Reservation
+  WHERE ReservationStatus = 'لغو شده'
+);
+DELETE FROM Reservation
+WHERE ReservationStatus = 'لغو شده';
+
+--query No: 21
+UPDATE 
+    Ticket t
+JOIN 
+    AirplaneTicket at ON t.TicketID = at.TicketID
+JOIN 
+    Reservation r ON t.TicketID = r.TicketID
+SET 
+    t.Price = t.Price * 0.9
+WHERE 
+    at.CompanyName = 'ماهان'
+    AND DATE(r.ReservationTime) = CURDATE() - INTERVAL 1 DAY;
+
+--query No: 22
+SELECT ReportSubject, COUNT(*) AS ReportCount
+FROM Reports
+WHERE TicketID = (
+    SELECT TicketID
+    FROM Reports
+    GROUP BY TicketID
+    ORDER BY COUNT(*) DESC
+    LIMIT 1
+)
+GROUP BY ReportSubject;
+
