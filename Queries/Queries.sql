@@ -150,7 +150,7 @@ ORDER BY
 LIMIT 3;
 
 SELECT 
-    c.CityName,
+    c.CityName AS DestinationCity,
     COUNT(t.TicketID) AS TicketCount
 FROM
     city c
@@ -165,5 +165,61 @@ GROUP BY
 ORDER BY 
     TicketCount DESC;
 
+SELECT
+    c.CityName  AS DestinationCity,
+    COUNT(*) AS TicketCount
+FROM
+    ticket t
+JOIN
+    city c ON t.Destination = c.CityID
+JOIN
+    city Origin ON t.Origin = Origin.CityID
+JOIN
+    reservation r ON t.TicketID = r.TicketID
+WHERE
+    Origin.CityName = 'تهران' AND r.ReservationStatus = 'تایید شده'
+GROUP BY
+    c.CityName;
 
+SELECT DISTINCT
+    c.CityName
+FROM
+    city c
+JOIN
+    ticket t ON c.CityID = t.Origin
+JOIN
+    reservation r ON r.TicketID = t.TicketID
+WHERE
+    r.UserID = (
+        SELECT UserID
+        FROM user
+        ORDER BY RegistrationDate ASC
+        LIMIT 1
+    )
+    AND r.ReservationStatus = 'تایید شده'
+GROUP BY
+    c.CityName
+
+SELECT
+    u.FirstName,
+    u.LastName
+FROM
+    user u
+WHERE
+    u.`Role` = 'admin'
+
+SELECT
+    u.FirstName,
+    u.LastName,
+    COUNT(r.ReservationID) AS ReservationCount
+FROM
+    user u
+JOIN
+    reservation r ON u.UserID = r.UserID
+WHERE
+    r.ReservationStatus = 'تایید شده'
+GROUP BY
+    u.FirstName, u.LastName
+HAVING
+    COUNT(r.ReservationID) > 1;
 
