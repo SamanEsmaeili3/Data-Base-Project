@@ -1,9 +1,11 @@
+--query No: 1
 SELECT FirstName, LastName
 FROM user 
 WHERE UserID NOT IN(
     SELECT DISTINCT UserID FROM reservation
 );
 
+--query No: 2
 SELECT DISTINCT u.FirstName, u.LastName
 FROM 
     user u
@@ -12,7 +14,7 @@ JOIN
 WHERE
     r.ReservationStatus = 'تایید شده'
 
-
+--query No: 3
 SELECT 
     u.UserID,
     u.FirstName,
@@ -36,6 +38,7 @@ GROUP BY
 ORDER BY 
     u.UserID, Year, Month;
 
+--query No: 4
 SELECT
     u.UserID,
     u.FirstName,
@@ -54,6 +57,7 @@ GROUP BY
 HAVING
     COUNT(r.ReservationID) = 1;
 
+--query No: 5
 SELECT 
     u.FirstName,
     u.LastName,
@@ -73,6 +77,7 @@ ORDER BY
     r.`ReservationTime` DESC
 LIMIT 1;
 
+--query No: 6
 SELECT 
     u.Email,
     u.PhoneNumber,
@@ -104,8 +109,7 @@ HAVING
 ORDER BY 
     TotalPayments DESC;
 
-SELECT reservation
-
+--query No: 7
 SELECT 
     CASE
         WHEN at.TicketID IS NOT NULL THEN 'هواپیما'
@@ -131,6 +135,7 @@ GROUP BY
 ORDER BY 
     TicketsSold DESC;
 
+--query No: 8
 SELECT 
     u.FirstName,
     u.LastName,
@@ -149,22 +154,8 @@ ORDER BY
     ReservationCount DESC
 LIMIT 3;
 
-SELECT 
-    c.CityName AS DestinationCity,
-    COUNT(t.TicketID) AS TicketCount
-FROM
-    city c
-JOIN
-    ticket t ON c.CityID = t.Origin
-JOIN
-    reservation r ON t.TicketID = r.TicketID
-WHERE
-    r.ReservationStatus = 'تایید شده' AND t.Origin = 1
-GROUP BY 
-    c.CityName
-ORDER BY 
-    TicketCount DESC;
 
+--query No: 9
 SELECT
     c.CityName  AS DestinationCity,
     COUNT(*) AS TicketCount
@@ -181,6 +172,7 @@ WHERE
 GROUP BY
     c.CityName;
 
+--query No: 10
 SELECT DISTINCT
     c.CityName
 FROM
@@ -200,6 +192,7 @@ WHERE
 GROUP BY
     c.CityName
 
+--query No: 11
 SELECT
     u.FirstName,
     u.LastName
@@ -208,6 +201,7 @@ FROM
 WHERE
     u.`Role` = 'admin'
 
+--query No: 12
 SELECT
     u.FirstName,
     u.LastName,
@@ -223,3 +217,162 @@ GROUP BY
 HAVING
     COUNT(r.ReservationID) > 1;
 
+--query No: 13
+-- This query is for ONLY Train tickets
+SELECT
+    u.FirstName,
+    u.LastName,
+    COUNT(*) AS TicketCount
+FROM
+    user u
+JOIN
+    reservation r ON u.UserID = r.UserID
+JOIN
+    ticket t ON r.TicketID = t.TicketID
+JOIN
+    trainticket tt ON t.TicketID = tt.TicketID
+WHERE
+    r.ReservationStatus = 'تایید شده'
+GROUP BY
+    u.FirstName, u.LastName
+HAVING
+    COUNT(*) < 3;
+
+-- This query is for ONLY Airplane tickets
+SELECT
+    u.FirstName,
+    u.LastName,
+    COUNT(*) AS TicketCount
+FROM
+    user u
+JOIN
+    reservation r ON u.UserID = r.UserID
+JOIN
+    ticket t ON r.TicketID = t.TicketID
+JOIN
+    airplaneticket tt ON t.TicketID = tt.TicketID
+WHERE
+    r.ReservationStatus = 'تایید شده'
+GROUP BY
+    u.FirstName, u.LastName
+HAVING
+    COUNT(*) < 3;
+
+
+-- This query is for ONLY bus tickets
+SELECT
+    u.FirstName,
+    u.LastName,
+    COUNT(*) AS TicketCount
+FROM
+    user u
+JOIN
+    reservation r ON u.UserID = r.UserID
+JOIN
+    ticket t ON r.TicketID = t.TicketID
+JOIN
+    busticket tt ON t.TicketID = tt.TicketID
+WHERE
+    r.ReservationStatus = 'تایید شده'
+GROUP BY
+    u.FirstName, u.LastName
+HAVING
+    COUNT(*) < 3;
+
+--query No: 14
+SELECT
+    u.Email,
+    u.PhoneNumber
+FROM
+    user u
+WHERE
+        EXISTS (
+            SELECT 1
+            From reservation r
+            JOIN payment p ON r.ReservationID = p.ReservationID
+            JOIN ticket t ON r.TicketID = t.TicketID
+            JOIN TrainTicket tt ON t.TicketID = tt.TicketID
+            WHERE r.UserID = u.UserID AND p.PaymentStatus = 'موفق'
+        )
+    AND 
+        EXISTS (
+            SELECT 1
+            FROM reservation r
+            JOIN payment p ON r.ReservationID = p.ReservationID
+            JOIN ticket t ON r.TicketID = t.TicketID
+            JOIN AirplaneTicket at ON t.TicketID = at.TicketID
+            WHERE r.UserID = u.UserID AND p.PaymentStatus = 'موفق'
+        )
+    AND
+        EXISTS (
+            SELECT 1
+            FROM reservation r
+            JOIN payment p ON r.ReservationID = p.ReservationID
+            JOIN ticket t ON r.TicketID = t.TicketID
+            JOIN BusTicket bt ON t.TicketID = bt.TicketID
+            WHERE r.UserID = u.UserID AND p.PaymentStatus = 'موفق'
+        );
+
+--query No: 15
+SELECT 
+    t.TicketID,
+    origin.CityName AS OriginCity,
+    dest.CityName AS DestinationCity,
+    t.DepartureDate,
+    t.DepartureTime,
+    t.ArrivalDate,
+    t.ArrivalTime,
+    t.Price,
+    p.PaymentTime
+FROM
+    payment p
+JOIN
+    reservation r ON p.ReservationID = r.ReservationID
+JOIN
+    ticket t ON r.TicketID = t.TicketID
+JOIN
+    city origin ON t.Origin = origin.CityID
+JOIN
+    city dest ON t.Destination = dest.CityID
+WHERE
+    DATE(p.`PaymentTime`) = CURDATE() AND p.PaymentStatus = 'موفق'
+ORDER BY
+    p.PaymentTime DESC;
+
+--query No: 16
+SELECT 
+    t.TicketID,
+    origin.CityName AS OriginCity,
+    dest.CityName AS DestinationCity,
+    t.DepartureDate,
+    t.DepartureTime,
+    t.ArrivalDate,
+    t.ArrivalTime,
+    t.Price,
+    sales.TotalSales
+FROM 
+    Ticket t
+JOIN 
+    City origin ON t.Origin = origin.CityID
+JOIN 
+    City dest ON t.Destination = dest.CityID
+JOIN (
+    SELECT 
+        r.TicketID, COUNT(*) AS TotalSales
+    FROM 
+        Reservation r
+    JOIN 
+        Payment p ON r.ReservationID = p.ReservationID
+    WHERE 
+        p.PaymentStatus = 'موفق'
+    GROUP BY 
+        r.TicketID
+    ORDER BY 
+        TotalSales DESC
+    LIMIT 2
+) AS sales ON t.TicketID = sales.TicketID
+ORDER BY 
+    sales.TotalSales ASC
+LIMIT 1;
+
+--query No: 17
