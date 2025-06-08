@@ -15,8 +15,16 @@ class UserProfileUpdate(BaseModel):
     FirstName: Optional[str] = None
     LastName: Optional[str] = None
     PhoneNumber: Optional[str] = None
-    Email = Optional[EmailStr] = None
-    City = Optional[str]
+    Email : Optional[EmailStr] = None
+    City : Optional[str]
+
+class UserResponse(BaseModel):
+    UserID: int
+    FirstName: str
+    LastName: str
+    Email: EmailStr
+    PhoneNumber: str
+    Role: str
 
 #Auth
 class Token(BaseModel):
@@ -78,3 +86,6 @@ class ReportCreate(BaseModel):
     ReservationID: int
     ReportSubject: str
     ReportText: str
+
+class AdminReservationUpdate(BaseModel):
+    NewStatus: str

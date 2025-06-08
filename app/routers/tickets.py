@@ -73,8 +73,10 @@ def reserve_ticket(reservation: ReservationCreate, current_user: dict = Depends(
     cursor = db.cursor(dictionary=True)
     try:
         db.start_transaction()
-        cursor.execute("SELECT RemainingCapacity FROM Ticket WHERE TicketID = %s AND RemainingCapacity > 0 FOR UPDATE", (reservation.TicketID,))
-        if not cursor.fetchone():
+        cursor.execute("SELECT RemainingCapacity FROM Ticket WHERE TicketID = %s AND RemainingCapacity > 0 FOR UPDATE"
+                       , (reservation.TicketID,))
+        ticket = cursor.fetchone()
+        if not ticket:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket is not available or sold out")
 
         cursor.execute("UPDATE Ticket SET RemainingCapacity = RemainingCapacity - 1 WHERE TicketID = %s", (reservation.TicketID,))
@@ -84,6 +86,9 @@ def reserve_ticket(reservation: ReservationCreate, current_user: dict = Depends(
         cursor.execute(insert_query, (current_user['UserID'], reservation.TicketID, "Reserved", datetime.utcnow(), expiry_time))
         reservation_id = cursor.lastrowid
         db.commit()
+        #redis syncing
+        cache_key = f"search:{ticket['Origin']}:{ticket['Destination']}:{ticket['DepartureDate']}"
+        redis_client.delete(cache_key)
 
         cursor.execute("SELECT * FROM Reservation WHERE ReservationID = %s", (reservation_id,))
         new_reservation = cursor.fetchone()
@@ -136,7 +141,8 @@ def cancel_ticket(reservation_id: int, current_user: dict = Depends(get_current_
     cursor = db.cursor(dictionary=True)
     try:
         db.start_transaction()
-        cursor.execute("SELECT TicketID FROM Reservation WHERE ReservationID = %s AND UserID = %s AND ReservationStatus = 'Paid", (reservation_id, current_user['UserID']))
+        cursor.execute("SELECT TicketID FROM Reservation WHERE ReservationID = %s AND UserID = %s AND ReservationStatus = 'Paid",
+                       (reservation_id, current_user['UserID']))
         reservation = cursor.fetchone()
         if not reservation:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Confirmed reservation not found for this user")
@@ -147,7 +153,9 @@ def cancel_ticket(reservation_id: int, current_user: dict = Depends(get_current_
         
         cursor.execute("UPDATE Reservation SET ReservationStatus = 'لغو شده' WHERE ReservationID = %s", (reservation_id,))
         cursor.execute("UPDATE Ticket SET RemainingCapacity = RemainingCapacity + 1 WHERE TicketID = %s", (ticket_id,))
-        
+        #Redis syncing
+        cache_key = f"search:{reservation['Origin']}:{reservation['Destination']}:{reservation['DepartureDate']}"
+        redis_client.delete(cache_key)
         db.commit()
         return {"message": "Ticket cancelled successfully", "refund_amount": penalty_info['refund_amount']}
     except Exception as e:
