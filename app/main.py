@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.routers import auth, users, tickets, admin
 
+
 app = FastAPI(
     title="Ticketing Service API",
     description="API for searching, reserving, and managing travel tickets.",

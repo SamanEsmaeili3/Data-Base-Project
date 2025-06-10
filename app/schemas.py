@@ -1,22 +1,24 @@
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional, Dict
-from datetime import datetime
+from datetime import datetime, date, time
+
 
 #User
 class UserCreate(BaseModel):
     FirstName: str
     LastName: str
-    PhoneNumber: str
     Email: EmailStr
-    City: str
+    PhoneNumber: str
     Password: str
+    City: str
+
 
 class UserProfileUpdate(BaseModel):
     FirstName: Optional[str] = None
     LastName: Optional[str] = None
     PhoneNumber: Optional[str] = None
     Email : Optional[EmailStr] = None
-    City : Optional[str]
+    City : Optional[str] = None
 
 class UserResponse(BaseModel):
     UserID: int
@@ -57,12 +59,15 @@ class TicketSearchResponse(BaseModel):
 
 class TicketDetailsResponse(BaseModel):
     TicketID: int
-    Origin: int
-    Destination: int
+    Origin: str
+    Destination: str
     DepartureDate: str
     DepartureTime: str
-    Price: float
+    ArrivalDate: str
+    ArrivalTime: str
+    Price: int
     RemainingCapacity: int
+    CompanyName: str
     Features: Optional[Dict] = None
 
 #Reservation, Payment, Report
@@ -89,3 +94,55 @@ class ReportCreate(BaseModel):
 
 class AdminReservationUpdate(BaseModel):
     NewStatus: str
+
+class TicketInfoForBooking(BaseModel):
+    Origin: str
+    Destination: str
+    DepartureDateTime: str
+    Price: float
+    CompanyName: str
+
+class UserBookingDetailsResponse(BaseModel):
+    ReservationID: int
+    ReservationStatus: str
+    ReservationTime: datetime
+    TicketDetails: TicketInfoForBooking
+
+class ReportResponse(BaseModel):
+    ReportID: int
+    FirstName: str
+    LastName: str
+    Email: EmailStr
+    OriginCity: Optional[str] = None
+    DestinationCity: Optional[str] = None
+    CompanyName: Optional[str] = None
+    ReportSubject: str
+    ReportText: str
+    ReportStatus: str
+
+class CancelledTicketReportResponse(BaseModel):
+    TicketID: int
+    Origin: str
+    Destination: str
+    DepartureDate: str
+    DepartureTime: str
+    ArrivalDate: str
+    ArrivalTime: str
+    Price: int
+    CompanyName: str
+
+class PaymentResponse(BaseModel):
+    FirstName: str
+    LastName: str
+    Origin: str
+    Destination: str
+    DepartureDate: str
+    DepartureTime: str
+    ArrivalDate: str
+    ArrivalTime: str
+    CompanyName: str
+    Price: int
+    PaymentTime : datetime
+    PaymentMethod: str
+
+
