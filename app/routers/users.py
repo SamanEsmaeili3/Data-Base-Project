@@ -1,8 +1,10 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
 import mysql.connector
 from typing import List
 
-from app.database import get_db_connection
+from app.database import get_db_connection, redis_client
 from app.dependencies import get_current_user
 from app.schemas import UserProfileUpdate, UserResponse, ReservationResponse, UserBookingDetailsResponse
 
@@ -17,7 +19,6 @@ def read_users_me(current_user: dict = Depends(get_current_user)):
 def update_user_profile(profile: UserProfileUpdate, current_user: dict = Depends(get_current_user),
                         db: mysql.connector.connection.MySQLConnection = Depends(get_db_connection)):
 
-    # Get a dictionary of provided fields, excluding None values
     update_data = profile.dict(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No update data provided")
@@ -28,43 +29,52 @@ def update_user_profile(profile: UserProfileUpdate, current_user: dict = Depends
     cursor = db.cursor(dictionary=True)
 
     try:
-        # Check if the user wants to update their city
-        if "City" in update_data:
-            city_name = update_data.pop("City")  # Remove City from dict to handle it separately
 
-            # Find the CityID from the database
+        if "City" in update_data:
+            city_name = update_data.pop("City")
             cursor.execute("SELECT CityID FROM City WHERE CityName = %s", (city_name,))
             city_record = cursor.fetchone()
             cursor.fetchall()
             if not city_record:
                 raise HTTPException(status_code=400, detail=f"City '{city_name}' not found.")
-
-            # Add CityID to the update query
             set_clauses.append("CityID = %s")
             values.append(city_record['CityID'])
+            update_data['CityID'] = city_record['CityID']  # for cash in Redis
 
-        # Prepare other fields for the update query
         for key, value in update_data.items():
-            # Ensure keys match the database column names (e.g., FirstName, LastName)
             set_clauses.append(f"{key} = %s")
             values.append(value)
 
-        # If after processing there's nothing to update, return
         if not set_clauses:
             return {"message": "No valid fields to update."}
 
-        # Append the UserID for the WHERE clause
         values.append(current_user['UserID'])
 
-        # Build and execute the final UPDATE query
-        query = f"UPDATE User SET {', '.join(set_clauses)} WHERE UserID = %s"
-
+        query = f"UPDATE `User` SET {', '.join(set_clauses)} WHERE UserID = %s"
         cursor.execute(query, tuple(values))
         db.commit()
+
+        # create new profile for redis
+        updated_profile = {
+            "UserID": current_user["UserID"],
+            **update_data  # all updated fields
+        }
+
+        # keep old values for un updated fields
+        cursor.execute("SELECT FirstName, LastName, Email, PhoneNumber, Role, CityID FROM `User` WHERE UserID = %s", (current_user['UserID'],))
+        full_user = cursor.fetchone()
+        for field in ["FirstName", "LastName", "Email", "PhoneNumber", "Role", "CityID"]:
+            updated_profile.setdefault(field, full_user.get(field))
+
+        redis_key = f"user_profile:{current_user['UserID']}"
+        redis_client.set(redis_key, json.dumps(updated_profile), ex=3600)
+        print(f"SUCCESS: User profile for UserID {current_user['UserID']} cached in Redis.")
 
     except mysql.connector.Error as err:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {err}")
+    except Exception as e:
+        print(f"WARNING: Redis caching failed for UserID {current_user['UserID']}. Error: {e}")
     finally:
         cursor.close()
 
@@ -77,7 +87,6 @@ def get_user_bookings(current_user: dict = Depends(get_current_user),
 
     query = """
         SELECT
-            r.ReservationID,
             r.ReservationStatus,
             r.ReservationTime,
             c1.CityName AS Origin,
@@ -100,7 +109,6 @@ def get_user_bookings(current_user: dict = Depends(get_current_user),
     bookings = []
     for row in results:
         booking_data = {
-            "ReservationID": row['ReservationID'],
             "ReservationStatus": row['ReservationStatus'],
             "ReservationTime": row['ReservationTime'],
             "TicketDetails": {

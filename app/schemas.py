@@ -103,7 +103,6 @@ class TicketInfoForBooking(BaseModel):
     CompanyName: str
 
 class UserBookingDetailsResponse(BaseModel):
-    ReservationID: int
     ReservationStatus: str
     ReservationTime: datetime
     TicketDetails: TicketInfoForBooking
