@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -100,6 +101,9 @@ def send_otp(otp_request: OTPRequest, db: mysql.connector.connection.MySQLConnec
 #(API 1) login with email or phone number
 @router.post("/otp/login", response_model=Token)
 def otp_login(otp_request: OTPLoginRequest, db: mysql.connector.connection.MySQLConnection = Depends(get_db_connection)):
+    cache_key = f"login:{otp_request.phone_or_email}"
+    if cashed_result := redis_client.get(cache_key):
+        return json.loads(cashed_result)
     cursor = db.cursor(dictionary=True)
     query = "SELECT UserID, Email FROM User WHERE Email = %s OR PhoneNumber = %s"
     cursor.execute(query, (otp_request.phone_or_email, otp_request.phone_or_email))

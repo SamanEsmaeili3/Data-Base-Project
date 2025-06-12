@@ -118,7 +118,6 @@ class UserBookingDetailsResponse(BaseModel):
     TicketDetails: TicketInfoForBooking
 
 class ReportResponse(BaseModel):
-    ReportID: int
     FirstName: str
     LastName: str
     Email: EmailStr
@@ -163,7 +162,7 @@ class PaymentResponse(BaseModel):
     ArrivalTime: str
     CompanyName: str
     Price: int
-    PaymentTime : datetime
+    PaymentTime : str
     PaymentMethod: str
 
 

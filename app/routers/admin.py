@@ -1,6 +1,4 @@
 import json
-
-import json5
 from fastapi import APIRouter, Depends, HTTPException, status
 import mysql.connector
 from typing import List
@@ -56,7 +54,7 @@ def get_all_reports(db: mysql.connector.connection.MySQLConnection = Depends(get
     finally:
         cursor.close()
 
-#(API 10 & 14) Admin: Manually update the status of any reservation
+#(API 10 & 14) Admin: Manually update the status of any reservation(might cause problem with redis)
 @router.put("/reservations/{reservation_id}")
 def update_reservation_status(reservation_id: int, update: AdminReservationUpdate, db: mysql.connector.connection.MySQLConnection = Depends(get_db_connection)):
     cursor = db.cursor()
@@ -72,6 +70,10 @@ def update_reservation_status(reservation_id: int, update: AdminReservationUpdat
 def get_all_cancelled_tickets(db: mysql.connector.connection.MySQLConnection = Depends(get_db_connection)):
     cursor = db.cursor(dictionary=True)
     try:
+        cash_key = "allCancelledReports"
+        if cache_data := redis_client.get(cash_key):
+            return json.loads(cache_data)
+
         query = """SELECT 
                 t.TicketID,
                 c1.CityName AS Origin,
@@ -95,6 +97,9 @@ def get_all_cancelled_tickets(db: mysql.connector.connection.MySQLConnection = D
             t["DepartureTime"] = str(t["DepartureTime"])
             t["ArrivalDate"] = str(t["ArrivalDate"])
             t["ArrivalTime"] = str(t["ArrivalTime"])
+
+        redis_client.set(cash_key, json.dumps(cancelled_ticket_reports), ex=600)
+
         return cancelled_ticket_reports
 
     except mysql.connector.Error as e:
@@ -139,9 +144,10 @@ def get_payment_report(db:mysql.connector.connection.MySQLConnection = Depends(g
             t["DepartureTime"] = str(t["DepartureTime"])
             t["ArrivalDate"] = str(t["ArrivalDate"])
             t["ArrivalTime"] = str(t["ArrivalTime"])
+            t["PaymentTime"] = str(t["PaymentTime"])
 
 
-        redis_client.set(cache_key, json.dump(reports), ex=600)
+        redis_client.set(cache_key, json.dumps(reports), ex=600)
 
         return reports
     except mysql.connector.Error as e:

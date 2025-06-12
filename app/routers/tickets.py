@@ -155,64 +155,76 @@ def search_tickets_advanced(
 def get_ticket_details(ticket_id: int, 
                        db: mysql.connector.connection.MySQLConnection = Depends(get_db_connection)):
     cursor = db.cursor(dictionary=True)
+    try:
+        #check redis first
+        cash_key = f"ticketDetail{ticket_id}"
+        if cash_data := redis_client.get(cash_key):
+            return json.loads(cash_data)
 
-    query = """
-        SELECT 
-            t.TicketID,
-            c1.CityName AS Origin,
-            c2.CityName AS Destination,
-            t.DepartureDate,
-            t.DepartureTime,
-            t.ArrivalDate,
-            t.ArrivalTime,
-            t.Price,
-            t.RemainingCapacity,
-            tc.CompanyName
-        FROM Ticket t
-        JOIN City c1 ON t.Origin = c1.CityID
-        JOIN City c2 ON t.Destination = c2.CityID
-        JOIN TransportCompany tc ON t.TransportCompanyID = tc.TransportCompanyID
-        WHERE t.TicketID = %s
-    """
-    cursor.execute(query, (ticket_id,))
-    ticket = cursor.fetchone()
+        query = """
+                SELECT 
+                    t.TicketID,
+                    c1.CityName AS Origin,
+                    c2.CityName AS Destination,
+                    t.DepartureDate,
+                    t.DepartureTime,
+                    t.ArrivalDate,
+                    t.ArrivalTime,
+                    t.Price,
+                    t.RemainingCapacity,
+                    tc.CompanyName
+                FROM Ticket t
+                JOIN City c1 ON t.Origin = c1.CityID
+                JOIN City c2 ON t.Destination = c2.CityID
+                JOIN TransportCompany tc ON t.TransportCompanyID = tc.TransportCompanyID
+                WHERE t.TicketID = %s
+            """
+        cursor.execute(query, (ticket_id,))
+        ticket = cursor.fetchone()
 
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found")
 
-    # convert date and time to string to prevent from ValidationError
-    ticket["DepartureDate"] = str(ticket["DepartureDate"])
-    ticket["DepartureTime"] = str(ticket["DepartureTime"])
-    ticket["ArrivalDate"] = str(ticket["ArrivalDate"])
-    ticket["ArrivalTime"] = str(ticket["ArrivalTime"])
+        # convert date and time to string to prevent from ValidationError
+        ticket["DepartureDate"] = str(ticket["DepartureDate"])
+        ticket["DepartureTime"] = str(ticket["DepartureTime"])
+        ticket["ArrivalDate"] = str(ticket["ArrivalDate"])
+        ticket["ArrivalTime"] = str(ticket["ArrivalTime"])
 
-    # check features
-    vehicle_features = {}
+        # check features
+        vehicle_features = {}
 
-    cursor.execute("SELECT * FROM AirplaneTicket WHERE TicketID = %s", (ticket_id,))
-    result = cursor.fetchone()
-    if result:
-        vehicle_features["Type"] = "Airplane"
-        vehicle_features.update(result)
-    else:
-        cursor.execute("SELECT * FROM BusTicket WHERE TicketID = %s", (ticket_id,))
+        cursor.execute("SELECT * FROM AirplaneTicket WHERE TicketID = %s", (ticket_id,))
         result = cursor.fetchone()
         if result:
-            vehicle_features["Type"] = "Bus"
+            vehicle_features["Type"] = "Airplane"
             vehicle_features.update(result)
         else:
-            cursor.execute("SELECT * FROM TrainTicket WHERE TicketID = %s", (ticket_id,))
+            cursor.execute("SELECT * FROM BusTicket WHERE TicketID = %s", (ticket_id,))
             result = cursor.fetchone()
             if result:
-                vehicle_features["Type"] = "Train"
+                vehicle_features["Type"] = "Bus"
                 vehicle_features.update(result)
+            else:
+                cursor.execute("SELECT * FROM TrainTicket WHERE TicketID = %s", (ticket_id,))
+                result = cursor.fetchone()
+                if result:
+                    vehicle_features["Type"] = "Train"
+                    vehicle_features.update(result)
 
-    # delete duplicate features from Ticket
-    vehicle_features.pop("TicketID", None)
-    ticket["Features"] = vehicle_features
+        # delete duplicate features from Ticket
+        vehicle_features.pop("TicketID", None)
+        ticket["Features"] = vehicle_features
+        #add to redis
+        redis_client.set(cash_key, json.dumps(ticket), ex=600)
+        return ticket
+    except mysql.connector.Error as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Database transaction failed: {e}")
+    finally:
+        cursor.close()
 
-    cursor.close()
-    return ticket
 
 #(API 7) Reserve a ticket for the current user.
 @router.post("/reserve", response_model=ReservationResponse)
@@ -239,18 +251,25 @@ def reserve_ticket(reservation: ReservationCreate, current_user: dict = Depends(
         db.commit()
 
         # --- CACHE INVALIDATION (update redis cache)---
-        cache_key = f"search:{ticket['Origin']}:{ticket['Destination']}:{ticket['DepartureDate']}"
-        if cashed_result := redis_client.get(cache_key):
-             redis_ticket_list = json.loads(cashed_result)
-        for t in redis_ticket_list:
-            if t['TicketID'] == reservation.TicketID:
-                if t['RemainingCapacity'] > 0:
-                    t['RemainingCapacity'] -= 1
-                    redis_client.delete(cache_key)
-                    redis_client.set(cache_key, json.dumps(redis_ticket_list), ex=600)
-                    break
+        cache_key = f"searchTickets:{ticket['Origin']}:{ticket['Destination']}:{ticket['DepartureDate']}"
+        cash_key2 = f"ticketDetail{reservation.TicketID}"
+        if cach_data := redis_client.get(cash_key2):
+            ticketDetail = json.loads(cach_data)
+            ticketDetail['RemainingCapacity'] -= 1
+            redis_client.delete(cash_key2)
+            redis_client.set(cash_key2, json.dumps(ticketDetail), ex=600)
 
-        # --------------------------
+        if cashed_result := redis_client.get(cache_key):
+            redis_ticket_list = json.loads(cashed_result)
+            for t in redis_ticket_list:
+                if t['TicketID'] == reservation.TicketID:
+                    if t['RemainingCapacity'] > 0:
+                        t['RemainingCapacity'] -= 1
+                        redis_client.delete(cache_key)
+                        redis_client.set(cache_key, json.dumps(redis_ticket_list), ex=600)
+                        break
+
+        #--------------------------
 
         cursor.execute("SELECT * FROM Reservation WHERE ReservationID = %s", (reservation_id,))
         new_reservation = cursor.fetchone()
