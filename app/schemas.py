@@ -57,6 +57,17 @@ class TicketSearchResponse(BaseModel):
     RemainingCapacity: int
     CompanyName: str
 
+class AdvancedTicketSearchResponse(BaseModel):
+    TicketID: int
+    Origin: str
+    Destination: str
+    DepartureDateTime: str
+    ArrivalDateTime: str
+    Price: float
+    RemainingCapacity: int
+    CompanyName: str
+    VehicleType: str
+
 class TicketDetailsResponse(BaseModel):
     TicketID: int
     Origin: str

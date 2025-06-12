@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 
 from app.database import get_db_connection, redis_client
 from app.dependencies import get_current_user
-from app.schemas import CitySchema, TicketSearchResponse, TicketDetailsResponse, ReservationCreate, PaymentRequest, ReportCreate, ReservationResponse
+from app.schemas import (CitySchema, TicketSearchResponse, TicketDetailsResponse, ReservationCreate, PaymentRequest,
+                         ReportCreate, ReservationResponse, AdvancedTicketSearchResponse)
 
 router = APIRouter(prefix="/tickets", tags=["Tickets & Reservations"])
 
@@ -57,7 +58,7 @@ def search_tickets(origin_name: str, destination_name: str, date: str,
         )
 
 
-    cache_key = f"search:{origin_id}:{destination_id}:{date}"
+    cache_key = f"searchTickets:{origin_id}:{destination_id}:{date}"
     if cashed_result := redis_client.get(cache_key):
         return json.loads(cashed_result)
     query = """
@@ -77,6 +78,77 @@ def search_tickets(origin_name: str, destination_name: str, date: str,
     cursor.close()
     redis_client.set(cache_key, json.dumps(tickets), ex=600)
     return tickets
+
+
+@router.get("/search/advanced", response_model=List[AdvancedTicketSearchResponse])
+def search_tickets_advanced(
+        origin_city: str,
+        destination_city: str,
+        date: str,
+        vehicle_type: str,  # 'airplane', 'bus', or 'train'
+        db: mysql.connector.connection.MySQLConnection = Depends(get_db_connection)
+):
+    # Validate vehicle_type input
+    valid_vehicles = ['airplane', 'bus', 'train']
+    if vehicle_type.lower() not in valid_vehicles:
+        raise HTTPException(status_code=400, detail="Invalid vehicle_type. Must be one of: airplane, bus, train.")
+
+    cursor = db.cursor(dictionary=True)
+    try:
+        # Get City IDs from names
+        cursor.execute("SELECT CityID FROM `City` WHERE CityName = %s", (origin_city,))
+        origin = cursor.fetchone()
+        cursor.fetchall()
+        cursor.execute("SELECT CityID FROM `City` WHERE CityName = %s", (destination_city,))
+        destination = cursor.fetchone()
+        cursor.fetchall()
+
+        if not origin or not destination:
+            raise HTTPException(status_code=404, detail="Origin or Destination city not found.")
+
+        origin_id = origin['CityID']
+        destination_id = destination['CityID']
+
+        # Base query joining necessary tables
+        base_query = """
+            SELECT
+                t.TicketID,
+                c1.CityName AS Origin,
+                c2.CityName AS Destination,
+                CONCAT(t.DepartureDate, ' ', t.DepartureTime) as DepartureDateTime,
+                CONCAT(t.ArrivalDate, ' ', t.ArrivalTime) as ArrivalDateTime,
+                t.Price,
+                t.RemainingCapacity,
+                tc.CompanyName,
+                CASE
+                    WHEN at.TicketID IS NOT NULL THEN 'airplane'
+                    WHEN bt.TicketID IS NOT NULL THEN 'bus'
+                    WHEN tt.TicketID IS NOT NULL THEN 'train'
+                    ELSE 'unknown'
+                END AS VehicleType
+            FROM `Ticket` t
+            JOIN `City` c1 ON t.Origin = c1.CityID
+            JOIN `City` c2 ON t.Destination = c2.CityID
+            JOIN `TransportCompany` tc ON t.TransportCompanyID = tc.TransportCompanyID
+            LEFT JOIN `AirplaneTicket` at ON t.TicketID = at.TicketID
+            LEFT JOIN `BusTicket` bt ON t.TicketID = bt.TicketID
+            LEFT JOIN `TrainTicket` tt ON t.TicketID = tt.TicketID
+            WHERE t.Origin = %s AND t.Destination = %s AND t.DepartureDate = %s
+        """
+
+        # Add filtering for vehicle type using a HAVING clause
+        final_query = f"{base_query} HAVING VehicleType = %s"
+
+        cursor.execute(final_query, (origin_id, destination_id, date, vehicle_type.lower()))
+        tickets = cursor.fetchall()
+
+        return tickets
+
+    except mysql.connector.Error as e:
+        print(f"DB error in advanced search: {e}")
+        raise HTTPException(status_code=500, detail="Failed to search for tickets.")
+    finally:
+        cursor.close()
     
 #(API 6) Get detailed information for a single ticket
 @router.get("/tickets/{ticket_id}", response_model=TicketDetailsResponse)
