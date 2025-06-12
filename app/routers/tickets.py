@@ -4,6 +4,7 @@ from typing import List
 import json
 from datetime import datetime, timedelta
 
+
 from app.database import get_db_connection, redis_client
 from app.dependencies import get_current_user
 from app.schemas import CitySchema, TicketSearchResponse, TicketDetailsResponse, ReservationCreate, PaymentRequest, ReportCreate, ReservationResponse
@@ -165,9 +166,18 @@ def reserve_ticket(reservation: ReservationCreate, current_user: dict = Depends(
         reservation_id = cursor.lastrowid
         db.commit()
 
-        # --- CACHE INVALIDATION ---
+        # --- CACHE INVALIDATION (update redis cache)---
         cache_key = f"search:{ticket['Origin']}:{ticket['Destination']}:{ticket['DepartureDate']}"
-        redis_client.delete(cache_key)
+        if cashed_result := redis_client.get(cache_key):
+             redis_ticket_list = json.loads(cashed_result)
+        for t in redis_ticket_list:
+            if t['TicketID'] == reservation.TicketID:
+                if t['RemainingCapacity'] > 0:
+                    t['RemainingCapacity'] -= 1
+                    redis_client.delete(cache_key)
+                    redis_client.set(cache_key, json.dumps(redis_ticket_list), ex=600)
+                    break
+
         # --------------------------
 
         cursor.execute("SELECT * FROM Reservation WHERE ReservationID = %s", (reservation_id,))
@@ -276,9 +286,13 @@ def cancel_ticket(reservation_id: int, current_user: dict = Depends(get_current_
 #(API 13) Report an issue with a ticket
 @router.post("/report")
 def report_issue(report: ReportCreate, current_user: dict = Depends(get_current_user), db: mysql.connector.connection.MySQLConnection = Depends(get_db_connection)):
-    query = "INSERT INTO Reports (ReportingUserID, TicketID, ReservationID, ReportSubject, ReportText, ReportStatus) VALUES (%s, %s, %s, %s, %s, %s)"
-    data = (current_user['UserID'], report.TicketID, report.ReservationID, report.ReportSubject, report.ReportText, "Pending")
     cursor = db.cursor()
+    cursor.execute("SELECT ReportSubjectID FROM Reportsubject WHERE SubjectName = %s", (report.ReportSubject,))
+    r_subject = cursor.fetchone()
+    t = r_subject[0]
+    cursor.fetchall()
+    query = "INSERT INTO Reports (ReportingUserID, ReservationID, ReportSubject, HandledBy, ReportText, ReportStatus) VALUES (%s, %s, %s, %s, %s, %s)"
+    data = (current_user['UserID'], report.ReservationID, r_subject[0], None,report.ReportText, "Pending")
     cursor.execute(query, data)
     db.commit()
     cursor.close()

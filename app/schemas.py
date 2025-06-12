@@ -87,7 +87,6 @@ class PaymentRequest(BaseModel):
     PaymentMethod: str
 
 class ReportCreate(BaseModel):
-    TicketID: int
     ReservationID: int
     ReportSubject: str
     ReportText: str
@@ -118,6 +117,18 @@ class ReportResponse(BaseModel):
     ReportSubject: str
     ReportText: str
     ReportStatus: str
+
+class UncheckedReportResponse(BaseModel):
+    ReportID: int
+    FirstName: str
+    LastName: str
+    Email: EmailStr
+    OriginCity: Optional[str] = None
+    DestinationCity: Optional[str] = None
+    CompanyName: Optional[str] = None
+    ReportSubject: str
+    ReportText: str
+
 
 class CancelledTicketReportResponse(BaseModel):
     TicketID: int
