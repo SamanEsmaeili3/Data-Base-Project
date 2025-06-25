@@ -41,6 +41,9 @@ class OTPRequest(BaseModel):
 class OTPLoginRequest(OTPRequest):
     otp: str
 
+class LoginWithPassword(BaseModel):
+    phone_or_Email: str
+    password: str
 
 #Ticket And City
 class CitySchema(BaseModel):

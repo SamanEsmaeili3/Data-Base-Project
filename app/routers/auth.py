@@ -7,8 +7,8 @@ import random
 import string
 
 from app.database import get_db_connection, redis_client
-from app.schemas import UserCreate, Token, OTPRequest, OTPLoginRequest
-from app.Security import get_password_hash, generate_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.schemas import UserCreate, Token, OTPRequest, OTPLoginRequest, LoginWithPassword
+from app.Security import get_password_hash, generate_access_token, verify_password
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -119,3 +119,26 @@ def otp_login(otp_request: OTPLoginRequest, db: mysql.connector.connection.MySQL
     access_token = generate_access_token(data={"sub": user["Email"]})
     redis_client.delete(f"OTP:{otp_request.phone_or_email}")
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/loginWithPassword", response_model=Token)
+def login_with_password(user: LoginWithPassword ,db: mysql.connector.connection.MySQLConnection = Depends(get_db_connection)):
+    cursor = db.cursor(dictionary=True)
+    try:
+        query = "SELECT UserID, Email, Password FROM User WHERE Email = %s OR PhoneNumber = %s"
+        cursor.execute(query, (user.phone_or_Email, user.phone_or_Email))
+        logged_in_user = cursor.fetchone()
+        if not logged_in_user:
+            cursor.close()
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        hashed_password = logged_in_user["Password"]
+        if not verify_password(user.password, hashed_password):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Email or Phone number or Password")
+        access_token = generate_access_token(data={"sub": logged_in_user["Email"]})
+        return {"access_token": access_token, "token_type": "bearer"}
+
+    except mysql.connector.Error as e:
+        print(f"DB error in get_all_reports: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch reports.")
+    finally:
+        cursor.close()
