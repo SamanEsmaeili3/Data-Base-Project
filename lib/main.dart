@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hand_made/data/notifiers.dart';
 import 'package:hand_made/views/widget_tree.dart';
-import 'package:hand_made/views/widgets/navbar_widget.dart';
 
 void main() {
   runApp(const MyApp());
