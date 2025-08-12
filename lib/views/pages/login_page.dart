@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hand_made/views/pages/otp_login_page.dart';
 import 'package:hand_made/views/pages/signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -22,7 +23,10 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               TextField(
                 controller: controller,
-                decoration: InputDecoration(border: OutlineInputBorder()),
+                decoration: InputDecoration(
+                  labelText: 'شماره همراه یا ایمیل',
+                  border: OutlineInputBorder(),
+                ),
                 onEditingComplete: () {
                   setState(() {});
                 },
@@ -36,7 +40,7 @@ class _LoginPageState extends State<LoginPage> {
                     MaterialPageRoute(builder: (context) => SignupPage()),
                   );
                 },
-                child: const Text('Sign Up'),
+                child: const Text('ثبت نام'),
               ),
             ],
           ),
@@ -49,8 +53,12 @@ class _LoginPageState extends State<LoginPage> {
             onPressed: () {
               // Handle login action
               // TODO: Implement login functionality
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => OtpLoginPage()),
+              );
             },
-            child: const Text('Login'),
+            child: const Text('ورود'),
           ),
         ],
       ),
