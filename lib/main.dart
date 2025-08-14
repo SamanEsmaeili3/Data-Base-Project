@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hand_made/data/notifiers.dart';
+import 'package:hand_made/views/pages/welcome_page.dart';
 import 'package:hand_made/views/widget_tree.dart';
 
 void main() {
@@ -23,8 +24,8 @@ class _MyAppState extends State<MyApp> {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: value ? ThemeData.dark() : ThemeData.light(),
-          title: 'Hand Made',
-          home: widgetTree(),
+          title: 'سفرچی',
+          home: WelcomePage(),
         );
       },
     );

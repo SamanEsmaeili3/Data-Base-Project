@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hand_made/views/pages/otp_login_page.dart';
-import 'package:hand_made/views/pages/signup_page.dart';
+import 'package:hand_made/views/widget_tree.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,53 +14,47 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            children: [
-              TextField(
-                controller: controller,
-                decoration: InputDecoration(
-                  labelText: 'شماره همراه یا ایمیل',
-                  border: OutlineInputBorder(),
-                ),
-                onEditingComplete: () {
-                  setState(() {});
-                },
+    return Scaffold(
+      appBar: AppBar(title: const Text("ورود به سفرچی"), centerTitle: true),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'ایمیل یا شماره همراه',
               ),
-              Text(controller.text),
-              TextButton(
-                onPressed: () {
-                  // Navigate to signup page
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => SignupPage()),
-                  );
-                },
-                child: const Text('ثبت نام'),
-              ),
-            ],
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
-              foregroundColor: Colors.white,
-              minimumSize: Size(double.infinity, 50), // Full width button
+              onEditingComplete: () {
+                setState(() {});
+              },
             ),
-            onPressed: () {
-              // Handle login action
-              // TODO: Implement login functionality
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => OtpLoginPage()),
-              );
-            },
-            child: const Text('ورود'),
-          ),
-        ],
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepOrangeAccent,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(
+                  double.infinity,
+                  50,
+                ), // Full width button
+              ),
+              onPressed: () {
+                // Pass the TextField value to OtpLoginPage
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) =>
+                            OtpLoginPage(emailOrPhoneNumber: controller.text),
+                  ),
+                );
+              },
+              child: const Text('ورود'),
+            ),
+          ],
+        ),
       ),
     );
   }

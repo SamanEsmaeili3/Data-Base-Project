@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:hand_made/data/notifiers.dart';
 import 'package:hand_made/views/pages/home_page.dart';
-import 'package:hand_made/views/pages/login_page.dart';
 import 'package:hand_made/views/pages/profile_page.dart';
 import 'package:hand_made/views/pages/search_page.dart';
-import 'package:hand_made/views/pages/signup_page.dart';
 import 'package:hand_made/views/widgets/navbar_widget.dart';
 
-List<Widget> pages = [const LoginPage(), const SearchPage(), const HomePage()];
+List<Widget> pages = [
+  const ProfilePage(),
+  const SearchPage(),
+  const HomePage(),
+];
 
 class widgetTree extends StatelessWidget {
   const widgetTree({super.key});
