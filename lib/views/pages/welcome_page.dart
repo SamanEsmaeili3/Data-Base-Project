@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hand_made/views/pages/login_page.dart';
-import 'package:hand_made/views/pages/otp_login_page.dart';
 import 'package:hand_made/views/pages/signup_page.dart';
 
 class WelcomePage extends StatefulWidget {

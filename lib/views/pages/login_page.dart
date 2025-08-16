@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hand_made/views/pages/otp_login_page.dart';
-import 'package:hand_made/views/widget_tree.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

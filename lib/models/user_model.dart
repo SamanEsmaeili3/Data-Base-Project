@@ -1,75 +1,96 @@
-class UserProfile {
-  final int id;
+// lib/models/user_model.dart
+
+class UserCreateModel {
   final String firstName;
   final String lastName;
   final String email;
   final String phoneNumber;
+  final String password;
   final String city;
-  final String createdAt;
 
-  const UserProfile({
-    required this.id,
+  UserCreateModel({
     required this.firstName,
     required this.lastName,
     required this.email,
     required this.phoneNumber,
+    required this.password,
     required this.city,
-    required this.createdAt,
   });
 
-  factory UserProfile.fromJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {
-        'id': int id,
-        'FirstName': String firstName,
-        'LastName': String lastName,
-        'Email': String email,
-        'PhoneNumber': String phoneNumber,
-        'City': String city,
-        'CreatedAt': String createdAt,
-      } =>
-        UserProfile(
-          id: id,
-          firstName: firstName,
-          lastName: lastName,
-          email: email,
-          phoneNumber: phoneNumber,
-          city: city,
-          createdAt: createdAt,
-        ),
-      _ => throw const FormatException('Failed to load user profile.'),
+  Map<String, dynamic> toJson() {
+    return {
+      'FirstName': firstName,
+      'LastName': lastName,
+      'Email': email,
+      'PhoneNumber': phoneNumber,
+      'Password': password,
+      'City': city,
     };
   }
 }
 
-class Booking {
-  final int reservationId;
-  final int ticketId;
-  final String status;
-  final String reservedAt;
+class UserProfileUpdateModel {
+  final String? firstName;
+  final String? lastName;
+  final String? phoneNumber;
+  final String? email;
+  final String? city;
 
-  const Booking({
-    required this.reservationId,
-    required this.ticketId,
-    required this.status,
-    required this.reservedAt,
+  UserProfileUpdateModel({
+    this.firstName,
+    this.lastName,
+    this.phoneNumber,
+    this.email,
+    this.city,
   });
 
-  factory Booking.fromJson(Map<String, dynamic> json) {
+  Map<String, dynamic> toJson() {
+    return {
+      if (firstName != null) 'FirstName': firstName,
+      if (lastName != null) 'LastName': lastName,
+      if (phoneNumber != null) 'PhoneNumber': phoneNumber,
+      if (email != null) 'Email': email,
+      if (city != null) 'City': city,
+    }..removeWhere((key, value) => value == null);
+  }
+}
+
+class UserModel {
+  final int userId;
+  final String firstName;
+  final String lastName;
+  final String email;
+  final String phoneNumber;
+  final String role;
+
+  UserModel({
+    required this.userId,
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    required this.phoneNumber,
+    required this.role,
+  });
+
+  factory UserModel.fromJson(Map<String, dynamic> json) {
     return switch (json) {
       {
-        'ReservationID': int reservationId,
-        'TicketID': int ticketId,
-        'Status': String status,
-        'ReservedAt': String reservedAt,
+        'UserID': int userId,
+        'FirstName': String firstName,
+        'LastName': String lastName,
+        'Email': String email,
+        'PhoneNumber': String phoneNumber,
+        'Role': String role,
       } =>
-        Booking(
-          reservationId: reservationId,
-          ticketId: ticketId,
-          status: status,
-          reservedAt: reservedAt,
+        UserModel(
+          userId: userId,
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          phoneNumber: phoneNumber,
+          role: role,
         ),
-      _ => throw const FormatException('Failed to load booking.'),
+      _ => throw const FormatException('Failed to load user model.'),
     };
   }
 }

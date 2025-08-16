@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hand_made/views/pages/home_page.dart';
 import 'package:hand_made/views/widget_tree.dart';
 
 class OtpLoginPage extends StatefulWidget {
