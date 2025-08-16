@@ -35,9 +35,13 @@ class ApiService {
     return TokenModel.fromJson(response.data);
   }
 
-  Future<TokenModel> login(LoginWithOtpModel loginData) async {
+  Future<void> sendOtp(SendOtpModel otpData) async {
+    await _dio.post('/auth/otp/send', data: otpData.toJson());
+  }
+
+  Future<TokenModel> LoginWithOtp(LoginWithOtpModel loginData) async {
     final response = await _dio.post(
-      '/auth/loginWithPassword',
+      '/auth/otp/login',
       data: loginData.toJson(),
     );
     return TokenModel.fromJson(response.data);

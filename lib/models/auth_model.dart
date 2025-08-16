@@ -26,6 +26,16 @@ class LoginWithPasswordModel {
   }
 }
 
+class SendOtpModel {
+  final String phoneOrEmail;
+
+  SendOtpModel({required this.phoneOrEmail});
+
+  Map<String, dynamic> toJson() {
+    return {'phone_or_email': phoneOrEmail};
+  }
+}
+
 class LoginWithOtpModel {
   final String phoneOrEmail;
   final String otp;
