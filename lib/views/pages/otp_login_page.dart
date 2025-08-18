@@ -72,9 +72,19 @@ class _OtpLoginPageState extends State<OtpLoginPage> {
                       _controller.text,
                     );
                     if (isSuccess) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('ورود با موفقیت انجام شد.'),
+                        ),
+                      );
+                      // Navigate to the main app page
+                      // TODO: Remove back botton functionality
+                      // to prevent going back to the login page
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => widgetTree()),
+                        MaterialPageRoute(
+                          builder: (context) => const widgetTree(),
+                        ),
                       );
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(

@@ -20,7 +20,7 @@ class LoginWithPasswordModel {
   LoginWithPasswordModel({required this.phoneOrEmail, required this.password});
 
   Map<String, dynamic> toJson() {
-    return {'phone_or_Email': phoneOrEmail, 'password': password};
+    return {'phone_or_email': phoneOrEmail, 'password': password};
   }
 }
 
@@ -41,6 +41,6 @@ class LoginWithOtpModel {
   LoginWithOtpModel({required this.phoneOrEmail, required this.otp});
 
   Map<String, dynamic> toJson() {
-    return {'phone_or_Email': phoneOrEmail, 'otp': otp};
+    return {'phone_or_email': phoneOrEmail, 'otp': otp};
   }
 }
