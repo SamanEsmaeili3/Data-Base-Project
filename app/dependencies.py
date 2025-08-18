@@ -48,7 +48,7 @@ def get_current_admin_user(current_user: dict = Depends(get_current_user)):
 # def is_email(s: str) -> bool:
 #     return re.match(r"[^@]+@[^@]+\.[^@]+", s) is not None
 #
-# async def send_email_otp(to_email: str, otp: str):
+# def send_email_otp(to_email: str, otp: str):
 #     url = "https://api.elasticemail.com/v2/email/send"
 #     payload = {
 #         "apikey": ELASTIC_API_KEY,
@@ -58,7 +58,7 @@ def get_current_admin_user(current_user: dict = Depends(get_current_user)):
 #         "bodyText": f"Your OTP code is: {otp}",
 #         "isTransactional": True
 #     }
-#     async with httpx.AsyncClient() as client:
+#     with httpx.AsyncClient() as client:
 #         response = await client.post(url, data=payload)
 #         if response.status_code != 200:
 #             raise HTTPException(status_code=500, detail="Failed to send email OTP")

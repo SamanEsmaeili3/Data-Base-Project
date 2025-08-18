@@ -3,6 +3,7 @@ from mysql.connector import pooling
 import redis
 import os
 from dotenv import load_dotenv
+from elasticsearch import Elasticsearch
 
 # Load environment variables from .env file
 load_dotenv()
@@ -43,6 +44,17 @@ try:
 except redis.exceptions.ConnectionError as err:
     print(f"FATAL ERROR: Could not connect to Redis: {err}")
     exit()
+# --- ElasticSearch Connection
+try:
+    es_client = Elasticsearch(
+        "http://localhost:9200"
+    )
+    if not es_client.ping():
+        raise ConnectionError("Could not connect to Elasticsearch")
+    print("Elasticsearch connection successful.")
+except Exception as err:
+    print(f"FATAL ERROR: Could not connect to Elasticsearch: {err}")
+    exit()
 
 # --- Dependency Function ---
 def get_db_connection():
@@ -53,3 +65,7 @@ def get_db_connection():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
+
+def get_es_client():
+    """Dependency to get the Elasticsearch client."""
+    return es_client

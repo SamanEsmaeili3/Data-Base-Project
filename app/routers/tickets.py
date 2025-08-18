@@ -1,11 +1,13 @@
+from elasticsearch import Elasticsearch
 from fastapi import APIRouter, Depends, HTTPException, status
 import mysql.connector
 from typing import List
 import json
 from datetime import datetime, timedelta
+from app.elastic_utils import sync_ticket_in_es
 
 
-from app.database import get_db_connection, redis_client
+from app.database import get_db_connection, redis_client, get_es_client
 from app.dependencies import get_current_user
 from app.schemas import (CitySchema, TicketSearchResponse, TicketDetailsResponse, ReservationCreate, PaymentRequest,
                          ReportCreate, ReservationResponse, AdvancedTicketSearchResponse)
@@ -21,138 +23,86 @@ def get_cities(db: mysql.connector.connection.MySQLConnection = Depends(get_db_c
     cursor.close()
     return cities
 
-#(API 5) Search for available tickets
+# (API 5) Search for available tickets - UPDATED FOR ELASTICSEARCH
 @router.get("/search", response_model=List[TicketSearchResponse])
 def search_tickets(origin_name: str, destination_name: str, date: str,
-                   db: mysql.connector.connection.MySQLConnection = Depends(get_db_connection)):
-    cursor = db.cursor(dictionary=True)
+                   es: Elasticsearch = Depends(get_es_client)):
+    query = {
+        "bool": {
+            "must": [
+                {"term": {"Origin": origin_name}},
+                {"term": {"Destination": destination_name}},
+                # Search for all ticket in given date
+                {"range": {
+                    "DepartureDateTime": {
+                        "gte": f"{date}T00:00:00",
+                        "lte": f"{date}T23:59:59"
+                    }
+                }}
+            ],
+            "filter": [
+                {"range": {"RemainingCapacity": {"gt": 0}}}
+            ]
+        }
+    }
     try:
-        cursor.execute("SELECT CityID FROM City WHERE CityName = %s", (origin_name,))
-        city_record = cursor.fetchone()
-        cursor.fetchall()
-
-        # if city not found return error
-        if not city_record:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"City '{origin_name}' not found. Please use a valid city name."
-            )
-        origin_id = city_record['CityID']
-
-        cursor.execute("SELECT CityID FROM City WHERE CityName = %s", (destination_name,))
-        city_record = cursor.fetchone()
-        cursor.fetchall()
-
-        # if city not found return error
-        if not city_record:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"City '{destination_name}' not found. Please use a valid city name."
-            )
-        destination_id = city_record['CityID']
-
-    except mysql.connector.Error as err:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail= "An error occurred while getting user info."
-        )
+        response = es.search(index="tickets", query=query, size=100)
+        tickets = [hit['_source'] for hit in response['hits']['hits']]
+        # convert date format to API response model
+        for ticket in tickets:
+            ticket['DepartureDateTime'] = ticket['DepartureDateTime'].replace('T', ' ')
+            ticket['ArrivalDateTime'] = ticket['ArrivalDateTime'].replace('T', ' ')
+        return tickets
+    except Exception as e:
+        print(f"Elasticsearch search error: {e}")
+        raise HTTPException(status_code=500, detail="Error searching for tickets.")
 
 
-    cache_key = f"searchTickets:{origin_id}:{destination_id}:{date}"
-    if cashed_result := redis_client.get(cache_key):
-        return json.loads(cashed_result)
-    query = """
-        SELECT t.TicketID, c1.CityName AS Origin, c2.CityName AS Destination,
-               CONCAT(t.DepartureDate, ' ', t.DepartureTime) as DepartureDateTime,
-               CONCAT(t.ArrivalDate, ' ', t.ArrivalTime) as ArrivalDateTime,
-               t.Price, t.RemainingCapacity, tc.CompanyName
-        FROM Ticket t
-        JOIN City c1 ON t.Origin = c1.CityID
-        JOIN City c2 ON t.Destination = c2.CityID
-        JOIN TransportCompany tc ON t.TransportCompanyID = tc.TransportCompanyID
-        WHERE t.Origin = %s AND t.Destination = %s AND t.DepartureDate = %s AND t.RemainingCapacity > 0
-    """
-    cursor = db.cursor(dictionary=True)
-    cursor.execute(query, (origin_id, destination_id, date))
-    tickets = cursor.fetchall()
-    cursor.close()
-    redis_client.set(cache_key, json.dumps(tickets), ex=600)
-    return tickets
-
-
+# Advanced search for available tickets - UPDATED FOR ELASTICSEARCH
 @router.get("/search/advanced", response_model=List[AdvancedTicketSearchResponse])
 def search_tickets_advanced(
         origin_city: str,
         destination_city: str,
         date: str,
-        vehicle_type: str,  # 'airplane', 'bus', or 'train'
-        db: mysql.connector.connection.MySQLConnection = Depends(get_db_connection)
+        vehicle_type: str,
+        es: Elasticsearch = Depends(get_es_client)
 ):
-    # Validate vehicle_type input
     valid_vehicles = ['airplane', 'bus', 'train']
     if vehicle_type.lower() not in valid_vehicles:
-        raise HTTPException(status_code=400, detail="Invalid vehicle_type. Must be one of: airplane, bus, train.")
+        raise HTTPException(status_code=400, detail="Invalid vehicle_type.")
 
-    cursor = db.cursor(dictionary=True)
+    query = {
+        "bool": {
+            "must": [
+                {"term": {"Origin": origin_city}},
+                {"term": {"Destination": destination_city}},
+                {"term": {"VehicleType": vehicle_type.lower()}},
+                {"range": {
+                    "DepartureDateTime": {
+                        "gte": f"{date}T00:00:00",
+                        "lte": f"{date}T23:59:59"
+                    }
+                }}
+            ],
+            "filter": [
+                {"range": {"RemainingCapacity": {"gt": 0}}}
+            ]
+        }
+    }
     try:
-        # Get City IDs from names
-        cursor.execute("SELECT CityID FROM `City` WHERE CityName = %s", (origin_city,))
-        origin = cursor.fetchone()
-        cursor.fetchall()
-        cursor.execute("SELECT CityID FROM `City` WHERE CityName = %s", (destination_city,))
-        destination = cursor.fetchone()
-        cursor.fetchall()
-
-        if not origin or not destination:
-            raise HTTPException(status_code=404, detail="Origin or Destination city not found.")
-
-        origin_id = origin['CityID']
-        destination_id = destination['CityID']
-
-        # Base query joining necessary tables
-        base_query = """
-            SELECT
-                t.TicketID,
-                c1.CityName AS Origin,
-                c2.CityName AS Destination,
-                CONCAT(t.DepartureDate, ' ', t.DepartureTime) as DepartureDateTime,
-                CONCAT(t.ArrivalDate, ' ', t.ArrivalTime) as ArrivalDateTime,
-                t.Price,
-                t.RemainingCapacity,
-                tc.CompanyName,
-                CASE
-                    WHEN at.TicketID IS NOT NULL THEN 'airplane'
-                    WHEN bt.TicketID IS NOT NULL THEN 'bus'
-                    WHEN tt.TicketID IS NOT NULL THEN 'train'
-                    ELSE 'unknown'
-                END AS VehicleType
-            FROM `Ticket` t
-            JOIN `City` c1 ON t.Origin = c1.CityID
-            JOIN `City` c2 ON t.Destination = c2.CityID
-            JOIN `TransportCompany` tc ON t.TransportCompanyID = tc.TransportCompanyID
-            LEFT JOIN `AirplaneTicket` at ON t.TicketID = at.TicketID
-            LEFT JOIN `BusTicket` bt ON t.TicketID = bt.TicketID
-            LEFT JOIN `TrainTicket` tt ON t.TicketID = tt.TicketID
-            WHERE t.Origin = %s AND t.Destination = %s AND t.DepartureDate = %s
-        """
-
-        # Add filtering for vehicle type using a HAVING clause
-        final_query = f"{base_query} HAVING VehicleType = %s"
-
-        cursor.execute(final_query, (origin_id, destination_id, date, vehicle_type.lower()))
-        tickets = cursor.fetchall()
-
+        response = es.search(index="tickets", query=query, size=100)
+        tickets = [hit['_source'] for hit in response['hits']['hits']]
+        for ticket in tickets:
+            ticket['DepartureDateTime'] = ticket['DepartureDateTime'].replace('T', ' ')
+            ticket['ArrivalDateTime'] = ticket['ArrivalDateTime'].replace('T', ' ')
         return tickets
+    except Exception as e:
+        print(f"Elasticsearch advanced search error: {e}")
+        raise HTTPException(status_code=500, detail="Error searching for tickets.")
 
-    except mysql.connector.Error as e:
-        print(f"DB error in advanced search: {e}")
-        raise HTTPException(status_code=500, detail="Failed to search for tickets.")
-    finally:
-        cursor.close()
-    
 #(API 6) Get detailed information for a single ticket
 @router.get("/tickets/{ticket_id}", response_model=TicketDetailsResponse)
-def get_ticket_details(ticket_id: int, 
+def get_ticket_details(ticket_id: int,
                        db: mysql.connector.connection.MySQLConnection = Depends(get_db_connection)):
     cursor = db.cursor(dictionary=True)
     try:
@@ -233,15 +183,20 @@ def reserve_ticket(reservation: ReservationCreate, current_user: dict = Depends(
     cursor = db.cursor(dictionary=True)
     try:
         # FIX: Removed db.start_transaction(). The transaction starts implicitly.
+        # qury been edited for ElasticSearch Synchronization
         cursor.execute(
-            "SELECT Origin, Destination, DepartureDate FROM Ticket WHERE TicketID = %s AND RemainingCapacity > 0 FOR UPDATE",
+            "SELECT Origin, Destination, DepartureDate, RemainingCapacity FROM Ticket WHERE TicketID = %s AND RemainingCapacity > 0 FOR UPDATE",
             (reservation.TicketID,))
         ticket = cursor.fetchone()
+        #add for elasticSearch synchronization
+        new_capacity = ticket['RemainingCapacity'] - 1
+
         if not ticket:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket is not available or sold out")
 
-        cursor.execute("UPDATE Ticket SET RemainingCapacity = RemainingCapacity - 1 WHERE TicketID = %s",
-                       (reservation.TicketID,))
+        cursor.execute("UPDATE Ticket SET RemainingCapacity = %s WHERE TicketID = %s",
+                       (new_capacity,reservation.TicketID,))
+
 
         expiry_time = datetime.utcnow() + timedelta(minutes=10)
         insert_query = "INSERT INTO Reservation (UserID, TicketID, ReservationStatus, ReservationTime, ReservationExpiryTime) VALUES (%s, %s, %s, %s, %s)"
@@ -249,6 +204,9 @@ def reserve_ticket(reservation: ReservationCreate, current_user: dict = Depends(
         current_user['UserID'], reservation.TicketID, "Reserved", datetime.utcnow(), expiry_time))
         reservation_id = cursor.lastrowid
         db.commit()
+
+        # --- ELASTICSEARCH SYNC ---
+        sync_ticket_in_es(ticket_id=reservation.TicketID, doc_to_update={"RemainingCapacity": new_capacity})
 
         # --- CACHE INVALIDATION (update redis cache)---
         cache_key = f"searchTickets:{ticket['Origin']}:{ticket['Destination']}:{ticket['DepartureDate']}"
@@ -341,7 +299,7 @@ def cancel_ticket(reservation_id: int, current_user: dict = Depends(get_current_
     cursor = db.cursor(dictionary=True)
     try:
         query = """
-            SELECT t.`TicketID`, t.`Origin`, t.`Destination`, t.`DepartureDate`, t.`Price`
+            SELECT t.`TicketID`, t.`Origin`, t.`Destination`, t.`DepartureDate`, t.`Price`, t.`RemainingCapacity`
             FROM `Reservation` r JOIN `Ticket` t ON r.TicketID = t.TicketID
             WHERE r.`ReservationID` = %s AND r.`UserID` = %s AND r.`ReservationStatus` = %s
         """
@@ -349,14 +307,21 @@ def cancel_ticket(reservation_id: int, current_user: dict = Depends(get_current_
 
         reservation_info = cursor.fetchone()
         cursor.fetchall()
+
+        #add for elasticSearch synchronization
+        new_capacity = reservation_info['RemainingCapacity'] + 1
+
         if not reservation_info:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Confirmed reservation not found")
 
         cursor.execute("UPDATE Reservation SET ReservationStatus = 'Cancelled' WHERE ReservationID = %s",
                        (reservation_id,))
-        cursor.execute("UPDATE Ticket SET RemainingCapacity = RemainingCapacity + 1 WHERE TicketID = %s",
-                       (reservation_info['TicketID'],))
+        cursor.execute("UPDATE Ticket SET RemainingCapacity = %s WHERE TicketID = %s",
+                       (new_capacity,reservation_info['TicketID'],))
         db.commit()
+
+        # --- ELASTICSEARCH SYNC ---
+        sync_ticket_in_es(ticket_id=reservation_info['TicketID'], doc_to_update={"RemainingCapacity": new_capacity})
 
         # --- CACHE INVALIDATION ---
         cache_key = f"search:{reservation_info['Origin']}:{reservation_info['Destination']}:{reservation_info['DepartureDate']}"
