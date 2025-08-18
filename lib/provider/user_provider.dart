@@ -7,21 +7,29 @@ class UserProvider with ChangeNotifier {
   UserModel? _user;
   bool _isLoading = false;
   String? _errorMessage;
+  String _authToken = '';
 
   // Getters
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  // Method to update the token from AuthProvider
+  void updateAuthToken(String token) {
+    _authToken = token;
+  }
+
   Future<void> fetchUserProfile() async {
+    if (_authToken.isEmpty) return;
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _user = await _apiService.getCurrentUserProfile();
+      _user = await _apiService.getCurrentUserProfile(_authToken);
     } catch (e) {
-      _errorMessage = "خطا در دریافت اطلاعات کاربر.";
+      _errorMessage = "Error fetching user information.";
+      _user = null; // Clear old data on error
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -29,17 +37,17 @@ class UserProvider with ChangeNotifier {
   }
 
   Future<bool> updateUserProfile(UserProfileUpdateModel profileData) async {
+    if (_authToken.isEmpty) return false;
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _apiService.updateUserProfile(profileData);
-      // After updating, fetch the profile again to refresh data
-      await fetchUserProfile();
+      await _apiService.updateUserProfile(profileData, _authToken);
+      await fetchUserProfile(); // Refresh profile after update
       return true;
     } catch (e) {
-      _errorMessage = "خطا در به‌روزرسانی پروفایل.";
+      _errorMessage = "Error updating profile.";
       _isLoading = false;
       notifyListeners();
       return false;

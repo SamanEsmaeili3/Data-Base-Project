@@ -1,5 +1,3 @@
-// lib/models/auth_model.dart
-
 class TokenModel {
   final String accessToken;
   final String tokenType;

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:hand_made/provider/auth_provider.dart';
 import 'package:hand_made/views/pages/otp_login_page.dart';
+import 'package:provider/provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -9,7 +11,13 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  TextEditingController controller = TextEditingController();
+  TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,36 +29,53 @@ class _LoginPageState extends State<LoginPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             TextField(
-              controller: controller,
+              controller: _controller,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 labelText: 'ایمیل یا شماره همراه',
               ),
-              onEditingComplete: () {
-                setState(() {});
-              },
+              onEditingComplete: () {},
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrangeAccent,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(
-                  double.infinity,
-                  50,
-                ), // Full width button
-              ),
-              onPressed: () {
-                // Pass the TextField value to OtpLoginPage
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (context) =>
-                            OtpLoginPage(emailOrPhoneNumber: controller.text),
+            Consumer<AuthProvider>(
+              builder: (context, authProvider, child) {
+                if (authProvider.authStatus == AuthStatus.authenticating) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
                   ),
+                  onPressed: () async {
+                    if (_controller.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'لطفا ایمیل یا شماره همراه را وارد کنید',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    final success = await authProvider.sendOtp(
+                      _controller.text,
+                    );
+                    if (success && mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => OtpLoginPage(
+                                emailOrPhoneNumber: _controller.text,
+                              ),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('دریافت کد تایید'),
                 );
               },
-              child: const Text('ورود'),
             ),
           ],
         ),

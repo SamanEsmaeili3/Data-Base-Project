@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hand_made/models/auth_model.dart';
-import 'package:hand_made/service/api_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../service/api_service.dart';
+import '../models/auth_model.dart';
+import '../models/user_model.dart'; // Needed for signUp
 
 enum AuthStatus {
   uninitialized,
@@ -13,7 +13,7 @@ enum AuthStatus {
 
 class AuthProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
-  AuthStatus _authStatus = AuthStatus.uninitialized;
+  AuthStatus _authStatus = AuthStatus.unauthenticated;
   String? _token;
   String? _errorMessage;
 
@@ -23,21 +23,7 @@ class AuthProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _authStatus == AuthStatus.authenticated;
 
-  AuthProvider() {
-    _checkLoginStatus();
-  }
-
-  Future<void> _checkLoginStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('access_token');
-
-    if (_token != null && _token!.isNotEmpty) {
-      _authStatus = AuthStatus.authenticated;
-    } else {
-      _authStatus = AuthStatus.unauthenticated;
-    }
-    notifyListeners();
-  }
+  // --- Methods ---
 
   Future<bool> sendOtp(String phoneOrEmail) async {
     _authStatus = AuthStatus.authenticating;
@@ -45,17 +31,13 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Create the model object
       final otpData = SendOtpModel(phoneOrEmail: phoneOrEmail);
-
-      // 2. Pass the single object to the service
       await _apiService.sendOtp(otpData);
-
       _authStatus = AuthStatus.otpSent;
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = "خطا در ارسال کد. لطفاً ورودی خود را چک کنید.";
+      _errorMessage = "خطا در ارسال کد تایید. لطفا دوباره تلاش کنید.";
       _authStatus = AuthStatus.unauthenticated;
       notifyListeners();
       return false;
@@ -68,19 +50,35 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Create the model object
       final loginData = LoginWithOtpModel(phoneOrEmail: phoneOrEmail, otp: otp);
-
-      // 2. Pass the single object to the service
-      final tokenModel = await _apiService.LoginWithOtp(loginData);
-
-      await _saveToken(tokenModel.accessToken);
+      final tokenModel = await _apiService.loginWithOtp(loginData);
+      _saveToken(tokenModel.accessToken);
       _authStatus = AuthStatus.authenticated;
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = "کد وارد شده صحیح نیست یا منقضی شده است.";
+      _errorMessage = "کد یا اشتباه است ویا منقضی شده است.";
       _authStatus = AuthStatus.otpSent;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> signUp(UserCreateModel userData) async {
+    _authStatus = AuthStatus.authenticating;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final tokenModel = await _apiService.signUp(userData);
+      _saveToken(tokenModel.accessToken);
+      _authStatus = AuthStatus.authenticated;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage =
+          "ایمیل یا شماره همراه قبلا ثبت شده است. لطفا از اطلاعات دیگری استفاده کنید.";
+      _authStatus = AuthStatus.unauthenticated;
       notifyListeners();
       return false;
     }
@@ -89,14 +87,10 @@ class AuthProvider with ChangeNotifier {
   Future<void> logout() async {
     _token = null;
     _authStatus = AuthStatus.unauthenticated;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
     notifyListeners();
   }
 
-  Future<void> _saveToken(String token) async {
+  void _saveToken(String token) {
     _token = token;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('access_token', token);
   }
 }

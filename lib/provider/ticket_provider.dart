@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hand_made/service/api_service.dart';
+import '../service/api_service.dart';
 import '../models/ticket_model.dart';
 
 class TicketProvider with ChangeNotifier {
@@ -21,10 +21,11 @@ class TicketProvider with ChangeNotifier {
 
   Future<void> fetchCities() async {
     try {
-      _cities = await _apiService.getCities();
-      notifyListeners();
+      if (_cities.isEmpty) {
+        _cities = await _apiService.getCities();
+        notifyListeners();
+      }
     } catch (e) {
-      // خطا در اینجا می‌تواند به صورت لوگ نمایش داده شود
       print("Failed to fetch cities: $e");
     }
   }
@@ -48,7 +49,7 @@ class TicketProvider with ChangeNotifier {
         vehicleType: vehicleType,
       );
     } catch (e) {
-      _errorMessage = "خطا در جستجوی بلیط. لطفاً دوباره تلاش کنید.";
+      _errorMessage = "Error searching for tickets. Please try again.";
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -64,7 +65,7 @@ class TicketProvider with ChangeNotifier {
     try {
       _ticketDetails = await _apiService.getTicketDetails(ticketId);
     } catch (e) {
-      _errorMessage = "خطا در دریافت جزئیات بلیط.";
+      _errorMessage = "Error fetching ticket details.";
     } finally {
       _isLoading = false;
       notifyListeners();
