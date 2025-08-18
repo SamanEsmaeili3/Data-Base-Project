@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:hand_made/provider/auth_provider.dart';
 import 'package:hand_made/views/widget_tree.dart';
+import 'package:provider/provider.dart';
 
 class OtpLoginPage extends StatefulWidget {
   const OtpLoginPage({super.key, required this.emailOrPhoneNumber});
@@ -11,7 +13,13 @@ class OtpLoginPage extends StatefulWidget {
 }
 
 class _OtpLoginPageState extends State<OtpLoginPage> {
-  TextEditingController controller = TextEditingController();
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +38,7 @@ class _OtpLoginPageState extends State<OtpLoginPage> {
           children: [
             TextField(
               keyboardType: TextInputType.number,
-              controller: controller,
+              controller: _controller,
               decoration: InputDecoration(
                 labelText: 'کد تایید',
                 border: OutlineInputBorder(),
@@ -39,22 +47,46 @@ class _OtpLoginPageState extends State<OtpLoginPage> {
                 setState(() {});
               },
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange,
-                foregroundColor: Colors.white,
-                minimumSize: Size(double.infinity, 50), // Full width button
-              ),
-              onPressed: () {
-                // TODO: Handle OTP verification
-                // Remove all previous pages and go to WidgetTree
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => widgetTree()),
-                  (Route<dynamic> route) => false,
+            Consumer<AuthProvider>(
+              builder: (context, authProvider, child) {
+                if (authProvider.authStatus == AuthStatus.authenticating) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                  onPressed: () async {
+                    if (_controller.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('لطفا کد تایید را وارد کنید'),
+                        ),
+                      );
+                      return;
+                    }
+                    final isSuccess = await authProvider.loginWithOtp(
+                      widget.emailOrPhoneNumber,
+                      _controller.text,
+                    );
+                    if (isSuccess) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => widgetTree()),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(authProvider.errorMessage ?? ''),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('ورود'),
                 );
               },
-              child: Text("ورود"),
             ),
           ],
         ),
