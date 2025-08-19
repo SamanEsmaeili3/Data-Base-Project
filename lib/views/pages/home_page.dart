@@ -30,25 +30,6 @@ class HomePage extends StatelessWidget {
       valueListenable: selectedPageNotifier,
       builder: (context, pageIndex, child) {
         return Scaffold(
-          // The AppBar is now controlled by HomePage
-          appBar: AppBar(
-            title: Center(child: Text('سفرچی')),
-            actions: [
-              IconButton(
-                onPressed: () {
-                  isDarkModeNotifier.value = !isDarkModeNotifier.value;
-                },
-                icon: ValueListenableBuilder(
-                  valueListenable: isDarkModeNotifier,
-                  builder: (context, isDarkMode, child) {
-                    return Icon(
-                      isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
           // The body changes based on the selected page
           body: _pages[pageIndex],
           // The bottom navigation bar remains the same
