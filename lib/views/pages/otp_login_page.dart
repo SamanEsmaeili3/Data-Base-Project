@@ -31,74 +31,77 @@ class _OtpLoginPageState extends State<OtpLoginPage> {
         ),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TextField(
-              keyboardType: TextInputType.number,
-              controller: _controller,
-              decoration: InputDecoration(
-                labelText: 'کد تایید',
-                border: OutlineInputBorder(),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextField(
+                keyboardType: TextInputType.number,
+                controller: _controller,
+                decoration: InputDecoration(
+                  labelText: 'کد تایید',
+                  border: OutlineInputBorder(),
+                ),
+                onEditingComplete: () {
+                  setState(() {});
+                },
               ),
-              onEditingComplete: () {
-                setState(() {});
-              },
-            ),
-            Consumer<AuthProvider>(
-              builder: (context, authProvider, child) {
-                if (authProvider.authStatus == AuthStatus.authenticating) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepOrange,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  onPressed: () async {
-                    if (_controller.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('لطفا کد تایید را وارد کنید'),
-                        ),
+              SizedBox(height: 10),
+              Consumer<AuthProvider>(
+                builder: (context, authProvider, child) {
+                  if (authProvider.authStatus == AuthStatus.authenticating) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  return ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepOrange,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    onPressed: () async {
+                      if (_controller.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('لطفا کد تایید را وارد کنید'),
+                          ),
+                        );
+                        return;
+                      }
+                      final isSuccess = await authProvider.loginWithOtp(
+                        widget.emailOrPhoneNumber,
+                        _controller.text,
                       );
-                      return;
-                    }
-                    final isSuccess = await authProvider.loginWithOtp(
-                      widget.emailOrPhoneNumber,
-                      _controller.text,
-                    );
-                    if (isSuccess) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('ورود با موفقیت انجام شد.'),
-                        ),
-                      );
-                      // Navigate to the main app page
-                      // TODO: Remove back botton functionality
-                      // to prevent going back to the login page
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const widgetTree(),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(authProvider.errorMessage ?? ''),
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('ورود'),
-                );
-              },
-            ),
-          ],
+                      if (isSuccess) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('ورود با موفقیت انجام شد.'),
+                          ),
+                        );
+                        // Navigate to the main app page
+                        // TODO: Remove back botton functionality
+                        // to prevent going back to the login page
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const widgetTree(),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(authProvider.errorMessage ?? ''),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text('ورود'),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

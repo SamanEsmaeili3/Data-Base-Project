@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:hand_made/data/notifiers.dart';
-import 'package:hand_made/views/pages/home_page.dart';
-import 'package:hand_made/views/pages/profile_page.dart';
-import 'package:hand_made/views/pages/search_page.dart';
-import 'package:hand_made/views/widgets/navbar_widget.dart';
+import 'package:hand_made/provider/auth_provider.dart';
+import 'package:provider/provider.dart';
+import '../data/notifiers.dart';
+import 'pages/home_page.dart';
+import 'pages/profile_page.dart';
+import 'pages/search_page.dart';
+import 'widgets/navbar_widget.dart';
 
+// This global list is fine.
 List<Widget> pages = [
   const ProfilePage(),
   const SearchPage(),
@@ -14,32 +17,50 @@ List<Widget> pages = [
 class widgetTree extends StatelessWidget {
   const widgetTree({super.key});
 
+  // Add a list of titles corresponding to the pages list
+  final List<String> _titles = const ['پروفایل', 'جستجوی بلیط', 'خانه'];
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Hand Made'),
-        actions: [
-          IconButton(
-            onPressed: () {
-              isDarkModeNotifier.value = !isDarkModeNotifier.value;
-            },
-            icon: ValueListenableBuilder(
-              valueListenable: isDarkModeNotifier,
-              builder: (context, isDarkMode, child) {
-                return Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode);
-              },
-            ),
+    // This ValueListenableBuilder controls the page content and AppBar title
+    return ValueListenableBuilder<int>(
+      valueListenable: selectedPageNotifier,
+      builder: (context, pageIndex, child) {
+        return Scaffold(
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            title: Text(_titles[pageIndex]),
+            centerTitle: true,
+            actions: [
+              // Dark mode toggle button
+              IconButton(
+                onPressed: () {
+                  isDarkModeNotifier.value = !isDarkModeNotifier.value;
+                },
+                icon: ValueListenableBuilder(
+                  valueListenable: isDarkModeNotifier,
+                  builder: (context, isDarkMode, child) {
+                    return Icon(
+                      isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                    );
+                  },
+                ),
+              ),
+              // Show logout button only on the profile page (index 0)
+              if (pageIndex == 0)
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  tooltip: 'خروج',
+                  onPressed: () {
+                    Provider.of<AuthProvider>(context, listen: false).logout();
+                  },
+                ),
+            ],
           ),
-        ],
-      ),
-      body: ValueListenableBuilder(
-        valueListenable: selectedPageNotifier,
-        builder: (context, value, child) {
-          return pages.elementAt(value);
-        },
-      ),
-      bottomNavigationBar: NavbarWidget(),
+          body: pages[pageIndex],
+          bottomNavigationBar: const NavbarWidget(),
+        );
+      },
     );
   }
 }
