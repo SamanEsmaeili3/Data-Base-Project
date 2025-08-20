@@ -142,4 +142,42 @@ class ApiService {
     );
     return response.data;
   }
+
+  Future<void> payForTicket(
+    int reservationId,
+    String paymentMethod,
+    String token,
+  ) async {
+    final paymentData = PaymentRequestModel(
+      reservationId: reservationId,
+      paymentMethod: paymentMethod,
+    );
+    await _dio.post(
+      '/tickets/pay',
+      data: paymentData.toJson(),
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+  }
+
+  Future<Map<String, dynamic>> checkCancellationPenalty(
+    int ticketId,
+    String token,
+  ) async {
+    final response = await _dio.get(
+      '/tickets/$ticketId/cancellation-penalty',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> cancelReservation(
+    int reservationId,
+    String token,
+  ) async {
+    final response = await _dio.post(
+      '/tickets/reservations/$reservationId/cancel',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
+  }
 }

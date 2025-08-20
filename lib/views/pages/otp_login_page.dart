@@ -82,11 +82,12 @@ class _OtpLoginPageState extends State<OtpLoginPage> {
                         // Navigate to the main app page
                         // TODO: Remove back botton functionality
                         // to prevent going back to the login page
-                        Navigator.pushReplacement(
+                        Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
                             builder: (context) => const widgetTree(),
                           ),
+                          (route) => false,
                         );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(

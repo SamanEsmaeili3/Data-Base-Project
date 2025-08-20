@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hand_made/views/pages/edit_profile_page.dart';
 import 'package:provider/provider.dart';
 import 'package:hand_made/provider/user_provider.dart';
 
@@ -60,7 +61,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   icon: const Icon(Icons.edit),
                   label: const Text("ویرایش اطلاعات"),
                   onPressed: () {
-                    // TODO: navigate to edit page
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EditProfilePage(user: user),
+                      ),
+                    );
                   },
                 ),
               ],

@@ -35,7 +35,7 @@ class BookingProvider with ChangeNotifier {
     try {
       _bookings = await _apiService.getUserBookings(_authToken);
     } catch (e) {
-      _errorMessage = "Error fetching booking history.";
+      _errorMessage = "خطا در درسافت اطلاعات رزروها";
       _bookings = []; // Clear old data on error
     } finally {
       _isLoading = false;
@@ -52,11 +52,11 @@ class BookingProvider with ChangeNotifier {
 
     try {
       await _apiService.reserveTicket(ticketId, _authToken);
-      _successMessage = "Ticket reserved successfully.";
+      _successMessage = "بلیط با موفقیت رزرو شد.";
       await fetchUserBookings(); // Refresh booking list
       return true;
     } catch (e) {
-      _errorMessage = "Failed to reserve ticket. It may be sold out.";
+      _errorMessage = "خطا در رزرو بلیط. لطفا با پشتیبانی تماس بگیرید.";
       return false;
     } finally {
       _isLoading = false;
@@ -75,11 +75,71 @@ class BookingProvider with ChangeNotifier {
       final result = await _apiService.cancelTicket(reservationId, _authToken);
       final refundAmount = result['refund_amount'];
       _successMessage =
-          "Ticket cancelled successfully. An amount of $refundAmount will be refunded.";
+          "بلیط با موفقیت لغو شد. مبلغ $refundAmount تومان به حساب شما بازگشت داده می‌شود.";
       await fetchUserBookings(); // Refresh booking list
       return true;
     } catch (e) {
-      _errorMessage = "Failed to cancel ticket. Please contact support.";
+      _errorMessage = "خطا در لغو بلیط. لطفا با پشتیبانی تماس بگیرید.";
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> payForReservation(
+    int reservationId,
+    String paymentMethod,
+  ) async {
+    if (_authToken.isEmpty) return false;
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await _apiService.payForTicket(reservationId, paymentMethod, _authToken);
+      _successMessage = "پرداخت با موفقیت انجام شد.";
+      // Refresh the booking list to show the new "Paid" status.
+      await fetchUserBookings();
+      return true;
+    } catch (e) {
+      _errorMessage = "پرداخت ناموفق بود. ممکن است رزرو منقضی شده باشد.";
+      notifyListeners(); // Also notify on error to update UI
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> checkCancellationPenalty(int ticketId) async {
+    if (_authToken.isEmpty) {
+      throw Exception('User not authenticated');
+    }
+    return await _apiService.checkCancellationPenalty(ticketId, _authToken);
+  }
+
+  Future<bool> cancelReservation(int reservationId) async {
+    if (_authToken.isEmpty) return false;
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await _apiService.cancelReservation(
+        reservationId,
+        _authToken,
+      );
+      final refundAmount = result['refund_amount'];
+      _successMessage =
+          "بلیط با موفقیت لغو شد. مبلغ $refundAmount تومان به حساب شما بازگردانده می‌شود.";
+      await fetchUserBookings(); // Refresh the list to show "Cancelled" status
+      return true;
+    } catch (e) {
+      _errorMessage = "خطا در لغو بلیط. لطفاً با پشتیبانی تماس بگیرید.";
+      notifyListeners(); // Also notify on error to update UI
       return false;
     } finally {
       _isLoading = false;

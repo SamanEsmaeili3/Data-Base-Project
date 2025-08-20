@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hand_made/provider/auth_provider.dart';
+import 'package:hand_made/views/pages/booking_history_page.dart';
 import 'package:provider/provider.dart';
 import '../data/notifiers.dart';
 import 'pages/home_page.dart';
@@ -11,14 +12,14 @@ import 'widgets/navbar_widget.dart';
 List<Widget> pages = [
   const ProfilePage(),
   const SearchPage(),
-  const HomePage(),
+  const BookingHistoryPage(),
 ];
 
 class widgetTree extends StatelessWidget {
   const widgetTree({super.key});
 
   // Add a list of titles corresponding to the pages list
-  final List<String> _titles = const ['پروفایل', 'جستجوی بلیط', 'خانه'];
+  final List<String> _titles = const ['پروفایل', 'جستجوی بلیط', 'تاریخچه رزرو'];
 
   @override
   Widget build(BuildContext context) {

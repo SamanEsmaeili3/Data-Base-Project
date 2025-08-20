@@ -49,7 +49,7 @@ class TicketProvider with ChangeNotifier {
         vehicleType: vehicleType,
       );
     } catch (e) {
-      _errorMessage = "Error searching for tickets. Please try again.";
+      _errorMessage = "خطا در جستجوی بلیط‌ها";
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -65,7 +65,7 @@ class TicketProvider with ChangeNotifier {
     try {
       _ticketDetails = await _apiService.getTicketDetails(ticketId);
     } catch (e) {
-      _errorMessage = "Error fetching ticket details.";
+      _errorMessage = "خطا در دریافت جزئیات بلیط";
     } finally {
       _isLoading = false;
       notifyListeners();

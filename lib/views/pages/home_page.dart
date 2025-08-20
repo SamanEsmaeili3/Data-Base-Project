@@ -12,16 +12,6 @@ class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   // The pages are the content widgets WITHOUT Scaffolds
-  final List<Widget> _pages = const [
-    ProfilePage(),
-    SearchPage(),
-    Center(
-      child: Text("Home Content"),
-    ), // Placeholder for the actual home page content
-  ];
-
-  // Titles for the AppBar corresponding to each page
-  final List<String> _titles = const ['Profile', 'Search Tickets', 'Home'];
 
   @override
   Widget build(BuildContext context) {
@@ -29,12 +19,7 @@ class HomePage extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: selectedPageNotifier,
       builder: (context, pageIndex, child) {
-        return Scaffold(
-          // The body changes based on the selected page
-          body: _pages[pageIndex],
-          // The bottom navigation bar remains the same
-          // bottomNavigationBar: const NavbarWidget(),
-        );
+        return Scaffold(body: Row(children: []));
       },
     );
   }

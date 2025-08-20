@@ -45,7 +45,7 @@ class ReservationResponseModel {
           reservationTime: DateTime.parse(reservationTime),
           reservationExpiryTime: DateTime.parse(reservationExpiryTime),
         ),
-      _ => throw const FormatException('Failed to load reservation response.'),
+      _ => throw const FormatException('خطا در بارگیری اطلاعات رزرو.'),
     };
   }
 }
@@ -95,17 +95,21 @@ class TicketInfoForBooking {
           price: (price as num).toDouble(),
           companyName: companyName,
         ),
-      _ => throw const FormatException('Failed to load ticket info.'),
+      _ => throw const FormatException('خطا در بارگیری اطلاعات بلیط.'),
     };
   }
 }
 
 class UserBookingDetailsResponse {
+  final int reservationId;
+  final int ticketId;
   final String reservationStatus;
   final DateTime reservationTime;
   final TicketInfoForBooking ticketDetails;
 
   UserBookingDetailsResponse({
+    required this.reservationId,
+    required this.ticketId,
     required this.reservationStatus,
     required this.reservationTime,
     required this.ticketDetails,
@@ -114,16 +118,20 @@ class UserBookingDetailsResponse {
   factory UserBookingDetailsResponse.fromJson(Map<String, dynamic> json) {
     return switch (json) {
       {
+        'ReservationID': int reservationId,
+        'TicketID': int ticketId,
         'ReservationStatus': String reservationStatus,
         'ReservationTime': String reservationTime,
         'TicketDetails': Map<String, dynamic> ticketDetails,
       } =>
         UserBookingDetailsResponse(
+          reservationId: reservationId,
+          ticketId: ticketId,
           reservationStatus: reservationStatus,
           reservationTime: DateTime.parse(reservationTime),
           ticketDetails: TicketInfoForBooking.fromJson(ticketDetails),
         ),
-      _ => throw const FormatException('Failed to load user booking details.'),
+      _ => throw const FormatException('خطا در بارگیری جزئیات رزرو.'),
     };
   }
 }

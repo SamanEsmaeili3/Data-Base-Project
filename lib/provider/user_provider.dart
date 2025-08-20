@@ -28,7 +28,7 @@ class UserProvider with ChangeNotifier {
     try {
       _user = await _apiService.getCurrentUserProfile(_authToken);
     } catch (e) {
-      _errorMessage = "Error fetching user information.";
+      _errorMessage = "خطا در دریافت اطلاعات کاربر";
       _user = null; // Clear old data on error
     } finally {
       _isLoading = false;
@@ -47,7 +47,7 @@ class UserProvider with ChangeNotifier {
       await fetchUserProfile(); // Refresh profile after update
       return true;
     } catch (e) {
-      _errorMessage = "Error updating profile.";
+      _errorMessage = "خطا در بروزرسانی پروفایل";
       _isLoading = false;
       notifyListeners();
       return false;
