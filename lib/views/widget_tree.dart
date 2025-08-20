@@ -4,7 +4,6 @@ import 'package:hand_made/views/pages/booking_history_page.dart';
 import 'package:hand_made/views/pages/welcome_page.dart';
 import 'package:provider/provider.dart';
 import '../data/notifiers.dart';
-import 'pages/home_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/search_page.dart';
 import 'widgets/navbar_widget.dart';

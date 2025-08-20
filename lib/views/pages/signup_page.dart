@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:hand_made/models/ticket_model.dart';
 import 'package:hand_made/provider/auth_provider.dart';
+import 'package:hand_made/provider/ticket_provider.dart';
 import 'package:hand_made/views/widget_tree.dart';
 import 'package:provider/provider.dart';
 import 'package:hand_made/models/user_model.dart';
@@ -17,7 +19,16 @@ class _SignupPageState extends State<SignupPage> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _cityController = TextEditingController();
+  CityModel? _selectedCity;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fetch the list of cities when the page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<TicketProvider>(context, listen: false).fetchCities();
+    });
+  }
 
   @override
   void dispose() {
@@ -26,7 +37,6 @@ class _SignupPageState extends State<SignupPage> {
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
-    _cityController.dispose();
     super.dispose();
   }
 
@@ -66,9 +76,33 @@ class _SignupPageState extends State<SignupPage> {
                 obscureText: true,
               ),
               const SizedBox(height: 10),
-              TextField(
-                controller: _cityController,
-                decoration: const InputDecoration(labelText: 'شهر'),
+              Consumer<TicketProvider>(
+                builder: (context, ticketProvider, child) {
+                  if (ticketProvider.isLoading &&
+                      ticketProvider.cities.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  return DropdownButtonFormField<CityModel>(
+                    value: _selectedCity,
+                    hint: const Text('شهر را انتخاب کنید'),
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                    items:
+                        ticketProvider.cities.map((city) {
+                          return DropdownMenuItem(
+                            value: city,
+                            child: Text(city.cityName),
+                          );
+                        }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCity = value;
+                      });
+                    },
+                  );
+                },
               ),
               const SizedBox(height: 30),
               Consumer<AuthProvider>(
@@ -89,9 +123,8 @@ class _SignupPageState extends State<SignupPage> {
                         email: _emailController.text,
                         phoneNumber: _phoneController.text,
                         password: _passwordController.text,
-                        city: _cityController.text,
+                        city: _selectedCity!.cityName,
                       );
-                      // You need to add the signUp method to your AuthProvider
                       authProvider
                           .signUp(userToCreate)
                           .then((success) {
