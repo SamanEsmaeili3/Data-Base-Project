@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hand_made/provider/auth_provider.dart';
 import 'package:hand_made/views/pages/booking_history_page.dart';
+import 'package:hand_made/views/pages/welcome_page.dart';
 import 'package:provider/provider.dart';
 import '../data/notifiers.dart';
 import 'pages/home_page.dart';
@@ -54,6 +55,11 @@ class widgetTree extends StatelessWidget {
                   tooltip: 'خروج',
                   onPressed: () {
                     Provider.of<AuthProvider>(context, listen: false).logout();
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => WelcomePage()),
+                      (route) => false,
+                    );
                   },
                 ),
             ],
