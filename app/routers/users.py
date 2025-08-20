@@ -10,6 +10,7 @@ from app.schemas import UserProfileUpdate, UserResponse, ReservationResponse, Us
 
 router = APIRouter(prefix="/users", tags=["User Profile"])
 
+#Should be cashed with redis(expire time = jwt expire time)
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: dict = Depends(get_current_user)):
     return current_user
@@ -87,6 +88,8 @@ def get_user_bookings(current_user: dict = Depends(get_current_user),
 
     query = """
         SELECT
+            r.ReservationID,
+            r.TicketID,
             r.ReservationStatus,
             r.ReservationTime,
             c1.CityName AS Origin,
@@ -109,6 +112,8 @@ def get_user_bookings(current_user: dict = Depends(get_current_user),
     bookings = []
     for row in results:
         booking_data = {
+            "ReservationID": row["ReservationID"],
+            "TicketID": row["TicketID"],
             "ReservationStatus": row['ReservationStatus'],
             "ReservationTime": row['ReservationTime'],
             "TicketDetails": {

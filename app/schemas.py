@@ -116,6 +116,8 @@ class TicketInfoForBooking(BaseModel):
     CompanyName: str
 
 class UserBookingDetailsResponse(BaseModel):
+    ReservationID: int
+    TicketID: int
     ReservationStatus: str
     ReservationTime: datetime
     TicketDetails: TicketInfoForBooking
